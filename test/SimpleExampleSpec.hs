@@ -1,7 +1,7 @@
 module SimpleExampleSpec where
 
 import qualified Data.Map as Map
-import SimpleExample (Expression (..), Value (..), eval)
+import SimpleExample
 import Test.HUnit
 
 tests :: Test
