@@ -1,0 +1,11 @@
+different evaluation strateies
+
+analysis of runtime overheads and any potential decisions of stack vs heap allocation
+
+monadic implementation -> comparison
+
+garbage collection? unbounded programs will need some sort of memory management,
+perhaps delete as necessary at EOL, once evaluation of a term finishes. By definition, variables in an affine program will have at most one reference so this should be safe.
+
+storing type infromation at runtime? might not be necessary.
+

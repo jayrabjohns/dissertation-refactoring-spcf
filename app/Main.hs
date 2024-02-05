@@ -1,9 +1,20 @@
 module Main where
 
-import SPCF (Term (..), Type (..))
+import BoundedSPCF (Term (..), Type (..))
+
+-- import SPCF (Term (..), Type (..))
 
 main :: IO ()
 main = print exTerm
+
+boundedTerm :: Term
+boundedTerm =
+  Lambda
+    "x"
+    (Base :-> Base)
+    ( Variable
+        "y"
+    )
 
 exTerm :: Term
 exTerm =
