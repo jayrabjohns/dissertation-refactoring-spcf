@@ -45,8 +45,8 @@ numeral i = Lambda "f" (Base :-> Base) (Lambda "x" Base (numeral' i))
       | i <= 0 = Variable "x"
       | otherwise = Apply (Variable "f") (numeral' (i - 1))
 
-succ :: Term
-succ =
+successor :: Term
+successor =
   Lambda
     "m"
     ((Base :-> Base) :-> (Base :-> Base))
@@ -64,4 +64,4 @@ succ =
     )
 
 suc :: Term -> Term
-suc x = Apply succ x
+suc x = Apply successor x
