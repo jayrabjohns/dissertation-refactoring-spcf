@@ -33,29 +33,30 @@ data Value
 -- A mapping from names to values
 type Env = Map.Map Label Value
 
-type Eval a = ExceptT String Identity a
+type Eval a = ReaderT Env (ExceptT String Identity) a
 
-runEval :: Eval a -> Either String a
-runEval = runIdentity . runExceptT
+runEval :: Env -> Eval a -> Either String a
+runEval env ev = runIdentity (runExceptT (runReaderT ev env))
 
-eval :: Env -> Expression -> Eval Value
-eval _ (Literal i) = return $ Nat i
-eval env (Variable label) =
-  liftEither
-    ( case Map.lookup label env of
-        Just val -> Right val
-        Nothing -> Left $ "No variable defined as " ++ label
-    )
-eval env (Abstract label expression) = return $ Fun env label expression
-eval env (Apply e1 e2) = do
-  val1 <- eval env e1
-  val2 <- eval env e2
+eval :: Expression -> Eval Value
+eval (Literal i) = return $ Nat i
+eval (Variable label) = do
+  env <- ask
+  case Map.lookup label env of
+    Just val -> return val
+    Nothing -> throwError $ "unbounded variable: " ++ label
+eval (Abstract label expression) = do
+  env <- ask
+  return $ Fun env label expression
+eval (Apply e1 e2) = do
+  val1 <- eval e1
+  val2 <- eval e2
   case val1 of
-    Fun env' n body -> eval (Map.insert n val2 env') body
+    Fun env' n body -> local (const (Map.insert n val2 env')) (eval body)
     _ -> throwError $ "Error while evaluating - cannot apply an expression to a literal. Specifically, " ++ show e2 ++ " cannot be applied to " ++ show e1
-eval env (Plus e1 e2) = do
-  val1 <- eval env e1
-  val2 <- eval env e2
+eval (Plus e1 e2) = do
+  val1 <- eval e1
+  val2 <- eval e2
   case (val1, val2) of
     (Nat i1, Nat i2) -> return $ Nat (i1 + i2)
     _ -> throwError "Plus is only defined for natural numbers, not a mixture of expressions and natural numbers."
