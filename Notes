@@ -10,3 +10,9 @@ perhaps delete as necessary at EOL, once evaluation of a term finishes. By defin
 storing type infromation at runtime? might not be necessary.
 
 https://arxiv.org/pdf/1808.07770.pdf
+
+The error values can be implemented with either or the error monad, piggybacking off of haskels own error handling. Then catch can handle the error.
+
+Either have one function to evaluate which recursively reduces terms or have two functions, one to reduce and another to evaluate.
+
+Because some terms are only defined on natural numbers (succ, pred), meaning terms should be in normal form? Either way in SPCF misapplication is legal and should be accounted for, but errors shoudl be thrown.
