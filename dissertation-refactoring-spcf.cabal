@@ -1,4 +1,4 @@
-cabal-version:      3.0
+cabal-version:      3.4
 -- The cabal-version field refers to the version of the .cabal specification,
 -- and can be different from the cabal-install (the tool) version and the
 -- Cabal (the library) version you are using. As such, the Cabal (the library)
@@ -68,7 +68,7 @@ executable dissertation-refactoring-spcf
 
     -- Other library packages from which modules are imported.
     build-depends: 
-        base ^>=4.17,
+        base ^>=4.19,
         dissertation-refactoring-spcf
 
     -- Directories containing source files.
@@ -88,9 +88,9 @@ library
         MonadicExample
 
     build-depends: 
-        base ^>=4.17,
-        containers >= 0.6 && < 0.7,
-        mtl >= 2.2.2 && < 2.3
+        base,
+        containers,
+        mtl
 
     hs-source-dirs: src
 
@@ -107,8 +107,8 @@ test-suite dissertation-refactoring-spcf-test
         MonadicExampleSpec,
         BoundedSPCFSpec
     build-depends:
-        base ^>=4.17,
-        HUnit ^>=1.6,
-        containers >= 0.6 && < 0.7,
-        mtl >= 2.2.2 && < 2.3,
+        base,
+        HUnit,
+        containers,
+        mtl,
         dissertation-refactoring-spcf
