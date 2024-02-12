@@ -16,3 +16,5 @@ The error values can be implemented with either or the error monad, piggybacking
 Either have one function to evaluate which recursively reduces terms or have two functions, one to reduce and another to evaluate.
 
 Because some terms are only defined on natural numbers (succ, pred), meaning terms should be in normal form? Either way in SPCF misapplication is legal and should be accounted for, but errors shoudl be thrown.
+
+should definitely include some denotional semantics of SPCF, and even possibly PCF, ASPCF as a comparison in the diss
