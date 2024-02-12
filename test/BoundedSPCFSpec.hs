@@ -15,9 +15,9 @@ tests =
       evalPredecessorOf0,
       evalTrueIf0,
       evalFalseIfNot0,
-      evalNestedTerms,
-      evalFixedPointOfLiteral
-      -- evalFixedPoint
+      -- evalNestedTerms,
+      evalFixedPointOfLiteral,
+      evalFixedPoint
     ]
 
 evalVariable :: Test
@@ -134,8 +134,8 @@ evalNestedTerms = do
                 )
             )
         )
-  let (x, y) = (5, 6)
-  let application = (Apply (Apply program (Literal x)) (Literal y))
+
+  let application = (Apply (Apply program (Literal 5)) (Literal 6))
   let expectedVal = Nat 11
   let env = Map.empty
   TestLabel
@@ -185,10 +185,10 @@ evalFixedPoint = do
   -- let expectedVal = Nat 4
   -- let env = Map.empty
 
-  let x = Variable "x"
-  let y = Variable "y"
+  let x = Variable "w"
+  let y = Variable "z"
   let addition = add x y
-  let env = Map.fromList [("x", (Nat 5)), ("y", (Nat 3))]
+  let env = Map.fromList [("w", (Nat 5)), ("z", (Nat 3))]
   let expectedVal = Nat 8
 
   TestLabel

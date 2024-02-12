@@ -1,6 +1,8 @@
 module BoundedSPCF (Term (..), Type (..), Value (..), Environment, eval, add) where
 
 import qualified Data.Map as Map
+import qualified Data.Map.Internal.Debug as Map.Debug
+import Debug.Trace
 
 type Label = String
 
@@ -16,7 +18,7 @@ data Term
   deriving
     ( -- | Error1
       -- | Error2
-      -- | Catch Label
+      -- | Catch
       Eq
     )
 
@@ -25,13 +27,13 @@ instance Show Term where
     where
       beautify :: Int -> Term -> String
       beautify _ (Literal i) = show i
-      beautify _ (Variable x) = show x
-      beautify i (Lambda var t term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "\\" ++ show var ++ ": " ++ show t ++ " . " ++ beautify 0 term
+      beautify _ (Variable x) = x
+      beautify i (Lambda var t term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "\\" ++ show var ++ {-": " ++ show t ++ -} ". " ++ beautify 0 term
       beautify i (Apply lhs rhs) = if i == 2 then "(" ++ s ++ ")" else s where s = beautify 1 lhs ++ " " ++ beautify 2 rhs
-      beautify i (Succ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Succ " ++ beautify 0 term
-      beautify i (Pred term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Pred " ++ beautify 0 term
-      beautify i (YComb term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Y " ++ beautify 0 term
-      beautify i (If0 cond lterm rterm) = if i == 2 then "(" ++ s ++ ")" else s where s = "If " ++ beautify 1 cond ++ " then " ++ beautify 1 lterm ++ " else " ++ beautify 2 rterm
+      beautify i (Succ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Succ " ++ beautify 2 term
+      beautify i (Pred term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Pred " ++ beautify 2 term
+      beautify i (YComb term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Y " ++ beautify 2 term
+      beautify i (If0 cond lterm rterm) = if i == 2 then "(" ++ s ++ ")" else s where s = "If0 " ++ beautify 1 cond ++ " then " ++ beautify 1 lterm ++ " else " ++ beautify 1 rterm
 
 -- beautify _ Error1 = "error1"
 -- beautify _ Error2 = "error2"
@@ -63,6 +65,8 @@ data Value
   | Closure Environment Term
   deriving (Show, Eq)
 
+-- Todo: Substitution (capture avoiding ofc) when evaluating an abstraction
+
 -- Evaluation is commonly denoted by ⇓ and is sort of a decomposition of a
 --   closure (a redex and an evaluation context) into a value.
 --   If the term is of ground type then the result will be either a numeral,
@@ -75,18 +79,33 @@ eval (Closure env (Variable label)) = case Map.lookup label env of
   Just val -> Right val
   Nothing -> Left ("Undefined variable " ++ label)
 eval abstraction@(Closure _ Lambda {}) = Right abstraction
-eval (Closure env (Apply (Lambda label _ body) rterm)) = do
+eval (Closure env (Apply lterm rterm)) = do
   -- Call by value because evaluating argument before application
-  arg <- eval (Closure env rterm)
-  eval (Closure (Map.insert label arg env) body)
-eval (Closure _ (Apply lterm rterm)) =
-  Left $
-    "Error while evaluating application - "
-      ++ "lhs of an application should always be an abstraction. "
-      ++ "Specifically, "
-      ++ show rterm
-      ++ " cannot be applied to "
-      ++ show lterm
+  func <- eval (Closure env lterm)
+  case func of
+    (Closure env' (Lambda label _ body)) -> do
+      arg <- eval (Closure env rterm)
+      let innerEnv = (Map.insert label arg env')
+      let result = eval (Closure innerEnv body)
+      trace
+        ( "\nApplying argument "
+            ++ show rterm
+            ++ " to body "
+            ++ show lterm
+            ++ " with environment\n"
+            ++ Map.Debug.showTreeWith (\k x -> show (k, x)) True False innerEnv
+        )
+        result
+    _ ->
+      Left $
+        "Error while evaluating application - "
+          ++ "lhs of an application should always be an abstraction. "
+          ++ "Specifically, "
+          ++ show lterm
+          ++ " cannot be applied to with "
+          ++ show rterm
+          ++ ". \nEnv:\n"
+          ++ Map.Debug.showTreeWith (\k x -> show (k, x)) True False env
 eval (Closure env (Succ term)) = do
   val <- eval (Closure env term)
   case val of
@@ -109,7 +128,6 @@ eval (Closure env (If0 cond iftrue iffalse)) = do
           ++ "Specifically, "
           ++ show cond
           ++ "doesn't evaluate to a number."
--- Y f = f (Y f)
 eval (Closure env (YComb term)) = do
   val <- eval (Closure env term)
   case val of
