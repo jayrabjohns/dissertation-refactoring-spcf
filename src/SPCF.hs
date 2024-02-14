@@ -71,21 +71,21 @@ used (Lambda lable _ term) = lable : used term
 used (Apply lhs rhs) = used lhs ++ used rhs
 
 rename :: Label -> Label -> Term -> Term
-rename old new (Variable x)
-  | x == old = Variable new
-  | otherwise = Variable x
-rename old new (Lambda var t term)
-  | var == old = Lambda var t term
-  | otherwise = Lambda var t (rename old new term)
+rename old new var@(Variable label)
+  | label == old = Variable new
+  | otherwise = var
+rename old new abs@(Lambda label t body)
+  | label == old = abs
+  | otherwise = Lambda label t (rename old new body)
 rename old new (Apply lhs rhs) = Apply (rename old new lhs) (rename old new rhs)
 
 substitute :: Label -> Term -> Term -> Term
-substitute old new (Variable x)
-  | old == x = new
-  | otherwise = Variable x
-substitute old new (Lambda var t term)
-  | old == var = Lambda var t term
-  | otherwise = Lambda freshVar t (substitute old new (rename var freshVar term))
+substitute old new var@(Variable label)
+  | label == old = new
+  | otherwise = var
+substitute old new abs@(Lambda label t body)
+  | label == old = abs
+  | otherwise = Lambda freshVar t (substitute old new (rename label freshVar body))
   where
     freshVar :: Label
     freshVar = fresh (used new `merge` used term `merge` [old, var])

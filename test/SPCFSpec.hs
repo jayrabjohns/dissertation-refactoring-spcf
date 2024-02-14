@@ -16,6 +16,7 @@ tests =
       evalTrueIf0,
       evalFalseIfNot0,
       evalNestedTerms,
+      evalNestedTermsWithCaptureAvoidance,
       evalFixedPointOfLiteral,
       evalFixedPoint
     ]
@@ -108,7 +109,7 @@ evalFalseIfNot0 = do
             (Variable "z")
         )
   let expectedVal = Nat 6
-  let env = Map.fromList [("x", (Nat 1)), ("y", (Nat 3)), ("z", expectedVal)]
+  let env = Map.fromList [("x", (Nat 1)), ("y", (Nat 3)), ("z", (Nat 6))]
   TestLabel
     "if0 should evaluate to right term when condition is 0"
     $ assertEval term env expectedVal
@@ -143,8 +144,8 @@ evalNestedTerms = do
     "should evaluate nested expression correctly"
     $ assertEval application env expectedVal
 
-evalNestedTermsWithCapture avoidance :: Test
-evalNestedTerms = do
+evalNestedTermsWithCaptureAvoidance :: Test
+evalNestedTermsWithCaptureAvoidance = do
   let program =
         ( Lambda "f" 
           ((Base :-> Base) :-> Base :-> Base :-> Base)
@@ -170,7 +171,7 @@ evalNestedTerms = do
   let expectedVal = Nat 12
   let env = Map.empty
   TestLabel
-    "should evaluate nested expression correctly"
+    "should avoid variable capture"
     $ assertEval application env expectedVal
 
 evalFixedPointOfLiteral :: Test
