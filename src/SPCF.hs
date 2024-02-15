@@ -1,4 +1,4 @@
-module SPCF (Term (..), Type (..), Value (..), Environment, eval, add) where
+module SPCF (Term (..), Type (..), Value (..), Label, Environment, eval, add, substitute) where
 
 import qualified Data.Map as Map
 import qualified Data.Map.Internal.Debug as Map.Debug
@@ -65,32 +65,59 @@ data Value
   | Closure Environment Term
   deriving (Show, Eq)
 
+variables :: [Label]
+variables = [[x] | x <- ['a' .. 'z']] ++ [x : show i | i <- [1 :: Int ..], x <- ['a' .. 'z']]
+
+removeAll :: [Label] -> [Label] -> [Label]
+removeAll xs ys = [x | x <- xs, x `notElem` ys]
+
+fresh :: [Label] -> Label
+fresh = head . removeAll variables
+
 used :: Term -> [Label]
-used (Variable lable) = [lable]
-used (Lambda lable _ term) = lable : used term
+used (Literal _) = []
+used (Variable label) = [label]
+used (Lambda label _ term) = label : used term
 used (Apply lhs rhs) = used lhs ++ used rhs
+used (Succ body) = used body
+used (Pred body) = used body
+used (If0 cond iftrue iffalse) = used cond ++ used iftrue ++ used iffalse
+used (YComb body) = used body
 
 rename :: Label -> Label -> Term -> Term
+rename _ _ literal@(Literal _) = literal
 rename old new var@(Variable label)
   | label == old = Variable new
   | otherwise = var
-rename old new abs@(Lambda label t body)
-  | label == old = abs
+rename old new abst@(Lambda label t body)
+  | label == old = abst
   | otherwise = Lambda label t (rename old new body)
 rename old new (Apply lhs rhs) = Apply (rename old new lhs) (rename old new rhs)
+rename old new (Succ body) = Succ (rename old new body)
+rename old new (Pred body) = Pred (rename old new body)
+rename old new (If0 cond iftrue iffalse) =
+  let r = rename old new
+   in If0 (r cond) (r iftrue) (r iffalse)
+rename old new (YComb body) = YComb (rename old new body)
 
 substitute :: Label -> Term -> Term -> Term
+substitute _ _ literal@Literal {} = literal
 substitute old new var@(Variable label)
   | label == old = new
   | otherwise = var
-substitute old new abs@(Lambda label t body)
-  | label == old = abs
-  | otherwise = Lambda freshVar t (substitute old new (rename label freshVar body))
-  where
-    freshVar :: Label
-    freshVar = fresh (used new `merge` used term `merge` [old, var])
-substitute old new (Apply lhs rhs) = Apply (substitute old new lhs) (substitute old new rhs)
-
+substitute old new abst@(Lambda label t body)
+  | label == old = abst
+  | otherwise =
+      let freshVar = fresh (used new ++ used body ++ [old, label])
+       in Lambda freshVar t (substitute old new (rename label freshVar body))
+substitute old new (Apply lhs rhs) =
+  Apply (substitute old new lhs) (substitute old new rhs)
+substitute old new (Succ body) = Succ (substitute old new body)
+substitute old new (Pred body) = Pred (substitute old new body)
+substitute old new (If0 cond iftrue iffalse) =
+  let sub = substitute old new
+   in (If0 (sub cond) (sub iftrue) (sub iffalse))
+substitute old new (YComb body) = YComb (substitute old new body)
 
 -- Todo: Substitution (capture avoiding ofc) when evaluating an abstraction
 
@@ -108,19 +135,20 @@ eval (Closure env (Variable label)) = case Map.lookup label env of
 eval abstraction@(Closure _ Lambda {}) = Right abstraction
 eval (Closure env (Apply lterm rterm)) = do
   -- Call by value because evaluating argument before application
-  func <- eval (Closure env lterm)
-  case func of
+  lval <- eval (Closure env lterm)
+  case lval of
     (Closure env' (Lambda label _ body)) -> do
       arg <- eval (Closure env rterm)
-      let innerEnv = (Map.insert label arg env')
-      let result = eval (Closure innerEnv body)
+      let newEnv = Map.insert label arg env'
+      let newTerm = body -- substitute label rterm body
+      let result = eval (Closure newEnv newTerm)
       trace
         ( "\nApplying argument "
             ++ show rterm
             ++ " to body "
             ++ show lterm
             ++ " with environment\n"
-            ++ Map.Debug.showTreeWith (\k x -> show (k, x)) True False innerEnv
+            ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False newEnv
         )
         result
     _ ->
