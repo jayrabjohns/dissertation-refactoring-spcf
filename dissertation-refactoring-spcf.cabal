@@ -105,7 +105,8 @@ test-suite dissertation-refactoring-spcf-test
     other-modules: 
         SimpleExampleSpec,
         MonadicExampleSpec,
-        SPCFSpec
+        SPCFSpec,
+        SPCFHelpersSpec
     build-depends:
         base,
         HUnit,

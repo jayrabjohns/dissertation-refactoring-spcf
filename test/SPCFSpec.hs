@@ -1,7 +1,7 @@
 module SPCFSpec where
 
-import SPCF
 import qualified Data.Map as Map
+import SPCF
 import Test.HUnit
 
 tests :: Test
@@ -117,23 +117,24 @@ evalFalseIfNot0 = do
 evalNestedTerms :: Test
 evalNestedTerms = do
   let program =
-        ( Lambda "f" 
-          ((Base :-> Base) :-> Base :-> Base :-> Base)
-          ( Lambda
-              "x"
-              (Base :-> Base :-> Base)
-              ( Lambda
-                  "y"
-                  (Base :-> Base)
-                  ( If0
-                      (Variable "x")
-                      (Variable "y")
-                      ( Succ
-                        (Apply (Variable "f") (Pred (Variable "x")))
-                      )
-                  )
-              )
-          )
+        ( Lambda
+            "f"
+            ((Base :-> Base) :-> Base :-> Base :-> Base)
+            ( Lambda
+                "x"
+                (Base :-> Base :-> Base)
+                ( Lambda
+                    "y"
+                    (Base :-> Base)
+                    ( If0
+                        (Variable "x")
+                        (Variable "y")
+                        ( Succ
+                            (Apply (Variable "f") (Pred (Variable "x")))
+                        )
+                    )
+                )
+            )
         )
 
   let (f, x, y) = ((Lambda "w" (Base :-> Base) (Succ (Succ (Variable "w")))), (Literal 5), (Literal 6))
@@ -147,23 +148,24 @@ evalNestedTerms = do
 evalNestedTermsWithCaptureAvoidance :: Test
 evalNestedTermsWithCaptureAvoidance = do
   let program =
-        ( Lambda "f" 
-          ((Base :-> Base) :-> Base :-> Base :-> Base)
-          ( Lambda
-              "x"
-              (Base :-> Base :-> Base)
-              ( Lambda
-                  "y"
-                  (Base :-> Base)
-                  ( If0
-                      (Variable "x")
-                      (Variable "y")
-                      ( Succ
-                        (Apply (Variable "f") (Pred (Variable "x")))
-                      )
-                  )
-              )
-          )
+        ( Lambda
+            "f"
+            ((Base :-> Base) :-> Base :-> Base :-> Base)
+            ( Lambda
+                "x"
+                (Base :-> Base :-> Base)
+                ( Lambda
+                    "y"
+                    (Base :-> Base)
+                    ( If0
+                        (Variable "x")
+                        (Variable "y")
+                        ( Succ
+                            (Apply (Variable "f") (Pred (Variable "x")))
+                        )
+                    )
+                )
+            )
         )
 
   let (f, x, y) = ((Lambda "y" (Base :-> Base) (Succ (Succ (Variable "y")))), (Literal 5), (Literal 6))
