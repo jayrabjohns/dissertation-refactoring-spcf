@@ -129,9 +129,17 @@ substitute old new (YComb body) = YComb (substitute old new body)
 eval :: Value -> Either String Value
 eval (Nat i) = Right (Nat i)
 eval (Closure _ (Literal i)) = Right (Nat i)
-eval (Closure env (Variable label)) = case Map.lookup label env of
-  Just val -> Right val
-  Nothing -> Left ("Undefined variable " ++ label)
+eval (Closure env (Variable label)) =
+  trace
+    ( "\nEvaluating "
+        ++ label
+        ++ " with environement:\n"
+        ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False env
+    )
+    ( case Map.lookup label env of
+        Just val -> Right val
+        Nothing -> Left ("Undefined variable " ++ label)
+    )
 eval abstraction@(Closure _ Lambda {}) = Right abstraction
 eval (Closure env (Apply lterm rterm)) = do
   -- Call by value because evaluating argument before application
@@ -139,21 +147,21 @@ eval (Closure env (Apply lterm rterm)) = do
   case lval of
     (Closure env' (Lambda label _ body)) -> do
       arg <- eval (Closure env rterm)
-      let newEnv = Map.insert label arg env'
-      let sub =
-            ( case arg of
-                (Nat i) -> Literal i
-                (Closure _ t) -> t
-            )
-      let newTerm = substitute label sub body -- body -- substitute label rterm body
-      let result = eval (Closure newEnv newTerm)
+      -- Taking the union of the newly constructed environment and the
+      --   evironment stored with the closure, this has the effect of closures
+      --   inheriting the environemnt in which they are applied, rather than
+      --   where they are defined. This is more consistent with how pratical
+      --   languages do things. E.g. when passing in an anonymous function,
+      --   you would expect it to capture the environemnt where it is called.
+      let newEnv = Map.unions [(Map.insert label arg env'), env]
+      let result = eval (Closure newEnv body)
       trace
         ( "\nApplying argument "
             ++ show rterm
             ++ " to body "
             ++ show lterm
             ++ " with environment\n"
-            ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False newEnv
+            ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False env'
         )
         result
     _ ->
@@ -161,40 +169,61 @@ eval (Closure env (Apply lterm rterm)) = do
         "Error while evaluating application - "
           ++ "lhs of an application should always be an abstraction. "
           ++ "Specifically, "
-          ++ show lterm
-          ++ " cannot be applied to with "
           ++ show rterm
+          ++ " cannot be applied to "
+          ++ show lterm
           ++ ". \nEnv:\n"
           ++ Map.Debug.showTreeWith (\k x -> show (k, x)) True False env
 eval (Closure env (Succ term)) = do
-  val <- eval (Closure env term)
+  val <-
+    ( trace
+        ( "\nFinding successor of "
+            ++ show term
+            ++ " with environemnt:\n"
+            ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False env
+        )
+        (eval (Closure env term))
+      )
   case val of
     Nat i -> Right (Nat (i + 1))
     _ -> Left $ "Cannot apply successor to non natural number" ++ show term
 eval (Closure env (Pred term)) = do
-  val <- eval (Closure env term)
+  val <-
+    ( trace
+        ( "\nFinding predecessor of "
+            ++ show term
+            ++ " with environemnt:\n"
+            ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False env
+        )
+        (eval (Closure env term))
+      )
   case val of
     Nat 0 -> Right (Nat 0) -- What is the pred of 0?
     Nat i -> Right (Nat (i - 1))
     _ -> Left $ "Cannot apply predeccessor to non natural number" ++ show term
 eval (Closure env (If0 cond iftrue iffalse)) = do
-  val <- eval (Closure env cond)
+  val <-
+    ( trace
+        ("if " ++ show cond ++ "\n then " ++ show iftrue ++ "\n else " ++ show iffalse)
+        (eval (Closure env cond))
+      )
   case val of
     Nat 0 -> eval (Closure env iftrue)
     Nat _ -> eval (Closure env iffalse)
     _ ->
       Left $
-        "Cannot check if non numericla value is 0."
+        "Cannot check if non numerical value is 0."
           ++ "Specifically, "
           ++ show cond
           ++ "doesn't evaluate to a number."
 eval (Closure env (YComb term)) = do
   val <- eval (Closure env term)
   case val of
-    Closure env' (Lambda label _ body) ->
-      let innerBody = Closure env (YComb term)
-          newEnv = Map.insert label innerBody env'
-       in eval (Closure newEnv body)
+    Closure env' abst@(Lambda label _ body) -> do
+      let innerBody = Closure env' (YComb abst)
+      let newEnv = Map.insert label innerBody env
+      -- eval (Closure newEnv body)
+      eval (Closure env' (YComb abst))
     _ -> Left "Error, it is only possible to take a fixed point of a lambda abstraction in SPCF."
 
 -- multerm :: Term -> Term -> Maybe Term
@@ -211,13 +240,16 @@ eval (Closure env (YComb term)) = do
 
 -- (a -> a) -> a
 -- ((a -> a) -> (a -> a)) -> (a -> a)
+-- fix f = f (fix f)
 fix :: (a -> a) -> a
 fix f = x where x = f x
 
+add' :: Int -> Int -> Int
 add' x y = (fix aux) x y
   where
-    aux f 0 y = y
-    aux f x y = f (x - 1) (y + 1)
+    aux :: (Int -> Int -> Int) -> Int -> Int -> Int
+    aux _ 0 b = b
+    aux f a b = f (a - 1) (b + 1)
 
 fix' :: (a -> a -> a) -> a -> a
 fix' f a = x where x = f x a
@@ -252,11 +284,12 @@ addTerm =
                 ( If0
                     (Variable "x")
                     (Variable "y")
-                    ( Succ
+                    ( Apply
                         ( Apply
-                            (Apply (Variable "f") (Pred (Variable "x")))
-                            (Variable "y")
+                            (Variable "f")
+                            (Pred (Variable "x"))
                         )
+                        (Succ (Variable "y"))
                     )
                 )
             )

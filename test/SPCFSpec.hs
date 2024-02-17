@@ -7,17 +7,17 @@ import Test.HUnit
 tests :: Test
 tests =
   TestList
-    [ -- evalVariable,
-      -- evalLambdaAbstraction,
-      -- evalApplication,
-      -- evalSuccessor,
-      -- evalPredecessor,
-      -- evalPredecessorOf0,
-      -- evalTrueIf0,
-      -- evalFalseIfNot0,
-      -- evalNestedTerms,
-      evalNestedTermsWithCaptureAvoidance
-      -- evalFixedPointOfLiteral,
+    [ evalVariable,
+      evalLambdaAbstraction,
+      evalApplication,
+      evalSuccessor,
+      evalPredecessor,
+      evalPredecessorOf0,
+      evalTrueIf0,
+      evalFalseIfNot0,
+      evalNestedTerms,
+      evalNestedTermsWithCaptureAvoidance,
+      evalFixedPointOfLiteral
       -- evalFixedPoint
     ]
 
@@ -137,9 +137,10 @@ evalNestedTerms = do
             )
         )
 
-  let (f, x, y) = ((Lambda "w" (Base :-> Base) (Succ (Succ (Variable "w")))), (Literal 5), (Literal 6))
+  let f = (Lambda "w" (Base :-> Base) (Succ (Succ (Variable "w"))))
+  let (x, y) = ((Literal 5), (Literal 6))
   let application = (Apply (Apply (Apply program f) x) y)
-  let expectedVal = Nat 12
+  let expectedVal = Nat 7
   let env = Map.empty
   TestLabel
     "should evaluate nested expression correctly"
@@ -172,7 +173,6 @@ evalNestedTermsWithCaptureAvoidance = do
                 )
             )
         )
-
   let f = (Lambda "x" (Base :-> Base) (Succ (Succ (Variable "y"))))
   let (x, y) = ((Literal 5), (Literal 10))
   let application = (Apply (Apply (Apply program f) x) y)

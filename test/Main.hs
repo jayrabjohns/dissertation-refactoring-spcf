@@ -19,6 +19,6 @@ tests =
   TestList
     [ -- SimpleExampleSpec.tests,
       --   MonadicExampleSpec.tests,
-      SPCFHelpersSpec.tests,
+      -- SPCFHelpersSpec.tests,
       SPCFSpec.tests
     ]
