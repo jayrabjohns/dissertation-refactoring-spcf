@@ -78,6 +78,7 @@ eval (Closure _ (Literal i)) = Right (Nat i)
 eval (Closure env (Variable label)) = case Map.lookup label env of
   Just val -> Right val
   Nothing -> Left ("Undefined variable " ++ label)
+-- eval abstraction@(Closure _ Lambda {}) = Right abstraction
 eval abstraction@(Closure _ Lambda {}) = Right abstraction
 eval (Closure env (Apply lterm rterm)) = do
   -- Call by value because evaluating argument before application
@@ -86,23 +87,22 @@ eval (Closure env (Apply lterm rterm)) = do
     (Closure env' (Lambda label _ body)) -> do
       arg <- eval (Closure env rterm)
       let innerEnv = (Map.insert label arg env')
-      let result = eval (Closure innerEnv body)
       trace
         ( "\nApplying argument "
             ++ show rterm
             ++ " to body "
             ++ show lterm
             ++ " with environment\n"
-            ++ Map.Debug.showTreeWith (\k x -> show (k, x)) True False innerEnv
+            ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False innerEnv
         )
-        result
+        (eval (Closure innerEnv body))
     _ ->
       Left $
         "Error while evaluating application - "
           ++ "lhs of an application should always be an abstraction. "
           ++ "Specifically, "
           ++ show lterm
-          ++ " cannot be applied to with "
+          ++ " cannot be applied with "
           ++ show rterm
           ++ ". \nEnv:\n"
           ++ Map.Debug.showTreeWith (\k x -> show (k, x)) True False env
@@ -124,7 +124,7 @@ eval (Closure env (If0 cond iftrue iffalse)) = do
     Nat _ -> eval (Closure env iffalse)
     _ ->
       Left $
-        "Cannot check if non numericla value is 0."
+        "Cannot check if non numerical value is 0."
           ++ "Specifically, "
           ++ show cond
           ++ "doesn't evaluate to a number."
