@@ -7,18 +7,18 @@ import Test.HUnit
 tests :: Test
 tests =
   TestList
-    [ evalVariable,
-      evalLambdaAbstraction,
-      evalApplication,
-      evalSuccessor,
-      evalPredecessor,
-      evalPredecessorOf0,
-      evalTrueIf0,
-      evalFalseIfNot0,
-      evalNestedTerms,
-      evalNestedTermsWithCaptureAvoidance,
-      evalFixedPointOfLiteral,
-      evalFixedPoint
+    [ -- evalVariable,
+      -- evalLambdaAbstraction,
+      -- evalApplication,
+      -- evalSuccessor,
+      -- evalPredecessor,
+      -- evalPredecessorOf0,
+      -- evalTrueIf0,
+      -- evalFalseIfNot0,
+      -- evalNestedTerms,
+      evalNestedTermsWithCaptureAvoidance
+      -- evalFixedPointOfLiteral,
+      -- evalFixedPoint
     ]
 
 evalVariable :: Test
@@ -147,6 +147,11 @@ evalNestedTerms = do
 
 evalNestedTermsWithCaptureAvoidance :: Test
 evalNestedTermsWithCaptureAvoidance = do
+  -- Apply (x-1) to f
+  --   f discards its input and instead uses the free variable 'y'
+  --   f adds two to y
+  --   the result of f(x) has 1 added to it and is the final result
+  --   so program(f, x, y) -> y + 3
   let program =
         ( Lambda
             "f"
@@ -168,13 +173,16 @@ evalNestedTermsWithCaptureAvoidance = do
             )
         )
 
-  let (f, x, y) = ((Lambda "y" (Base :-> Base) (Succ (Succ (Variable "y")))), (Literal 5), (Literal 6))
+  let f = (Lambda "x" (Base :-> Base) (Succ (Succ (Variable "y"))))
+  let (x, y) = ((Literal 5), (Literal 10))
   let application = (Apply (Apply (Apply program f) x) y)
-  let expectedVal = Nat 12
+  let expectedVal = Nat 13
   let env = Map.empty
   TestLabel
-    "should avoid variable capture"
+    "should avoid variable capture when evaluating nested terms"
     $ assertEval application env expectedVal
+
+-- The variable gets renames in the context but not in sub terms. I dont think bound variable should be renamed?
 
 evalFixedPointOfLiteral :: Test
 evalFixedPointOfLiteral = do
