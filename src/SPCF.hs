@@ -140,7 +140,12 @@ eval (Closure env (Apply lterm rterm)) = do
     (Closure env' (Lambda label _ body)) -> do
       arg <- eval (Closure env rterm)
       let newEnv = Map.insert label arg env'
-      let newTerm = body -- substitute label rterm body
+      let sub =
+            ( case arg of
+                (Nat i) -> Literal i
+                (Closure _ t) -> t
+            )
+      let newTerm = substitute label sub body -- body -- substitute label rterm body
       let result = eval (Closure newEnv newTerm)
       trace
         ( "\nApplying argument "
