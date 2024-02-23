@@ -1,3 +1,5 @@
 dist-newstyle
 dist
 .vscode/tasks.json
+.vscode/dist-cabal-repl
+.vscode/phoityne.log

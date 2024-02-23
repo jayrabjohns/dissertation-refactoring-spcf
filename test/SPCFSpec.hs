@@ -17,8 +17,8 @@ tests =
       evalFalseIfNot0,
       evalNestedTerms,
       evalNestedTermsWithCaptureAvoidance,
-      evalFixedPointOfLiteral
-      -- evalFixedPoint
+      evalFixedPointOfLiteral,
+      evalFixedPoint
     ]
 
 evalVariable :: Test
@@ -156,13 +156,13 @@ evalNestedTermsWithCaptureAvoidance = do
   let program =
         ( Lambda
             "f"
-            ((Base :-> Base) :-> Base :-> Base :-> Base)
+            (Base :-> Base)
             ( Lambda
                 "x"
-                (Base :-> Base :-> Base)
+                Base
                 ( Lambda
                     "y"
-                    (Base :-> Base)
+                    Base
                     ( If0
                         (Variable "x")
                         (Variable "y")
@@ -173,7 +173,7 @@ evalNestedTermsWithCaptureAvoidance = do
                 )
             )
         )
-  let f = (Lambda "x" (Base :-> Base) (Succ (Succ (Variable "y"))))
+  let f = (Lambda "x" Base (Succ (Succ (Variable "y"))))
   let (x, y) = ((Literal 5), (Literal 10))
   let application = (Apply (Apply (Apply program f) x) y)
   let expectedVal = Nat 13
@@ -181,8 +181,6 @@ evalNestedTermsWithCaptureAvoidance = do
   TestLabel
     "should avoid variable capture when evaluating nested terms"
     $ assertEval application env expectedVal
-
--- The variable gets renames in the context but not in sub terms. I dont think bound variable should be renamed?
 
 evalFixedPointOfLiteral :: Test
 evalFixedPointOfLiteral = do
@@ -215,27 +213,44 @@ evalFixedPointOfLiteral = do
 --     aux _ 0 y = y
 --     aux f x y = f (x - 1) (y + 1)
 
+-- YComb :: (a -> a) -> a
+--       :: ((b -> b -> b) -> (b -> b -> b)) -> (b -> b -> b)
+addTerm :: Term
+addTerm =
+  Lambda
+    "f"
+    (Base :-> Base :-> Base)
+    ( Lambda
+        "x"
+        Base
+        ( Lambda
+            "y"
+            Base
+            ( If0
+                (Variable "x")
+                (Variable "y")
+                ( Apply
+                    ( Apply
+                        (Variable "f")
+                        (Pred (Variable "x"))
+                    )
+                    (Succ (Variable "y"))
+                )
+            )
+        )
+    )
+
+add :: Term -> Term -> Term
+add x y = Apply (Apply (YComb (addTerm)) x) y
+
 evalFixedPoint :: Test
 evalFixedPoint = do
-  -- let factorial =
-  --       ( Lambda
-  --           "f"
-  --           (Base :-> Base)
-  --           (Literal 4)
-  --       )
-  -- let term = (YComb factorial)
-  -- let expectedVal = Nat 4
-  -- let env = Map.empty
-
-  let x = Variable "w"
-  let y = Variable "z"
-  let addition = add x y
-  let env = Map.fromList [("w", (Nat 5)), ("z", (Nat 3))]
+  let addition = add (Variable "f") (Variable "z")
+  let env = Map.fromList [("f", (Nat 5)), ("z", (Nat 3))]
   let expectedVal = Nat 8
 
   TestLabel
-    "fixed point"
-    -- \$ TestCase (assertEqual " " (add' 3 5) 8)
+    "should evaluate term using a fixed point combinator avoiding variable capture"
     $ assertEval addition env expectedVal
 
 assertEval :: Term -> Environment -> Value -> Test
