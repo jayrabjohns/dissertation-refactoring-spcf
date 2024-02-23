@@ -16,12 +16,11 @@ data Term
   | Pred Term
   | YComb Term
   | If0 Term Term Term
-  deriving
-    ( -- | Error1
-      -- | Error2
-      -- | Catch
-      Eq
-    )
+  | Error1
+  | Error2
+  deriving (Eq)
+
+-- \| Catch
 
 instance Show Term where
   show = beautify 0
@@ -35,9 +34,9 @@ instance Show Term where
       beautify i (Pred term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Pred " ++ beautify 2 term
       beautify i (YComb term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Y " ++ beautify 2 term
       beautify i (If0 cond lterm rterm) = if i == 2 then "(" ++ s ++ ")" else s where s = "If0 " ++ beautify 1 cond ++ " then " ++ beautify 1 lterm ++ " else " ++ beautify 1 rterm
+      beautify _ Error1 = "error1"
+      beautify _ Error2 = "error2"
 
--- beautify _ Error1 = "error1"
--- beautify _ Error2 = "error2"
 -- beautify _ (Catch x) = x
 
 -- In the bounded SPCF, the base type will also be bounded. E.g. Boolean or n natural ints
@@ -89,6 +88,8 @@ used (Succ body) = used body
 used (Pred body) = used body
 used (If0 cond iftrue iffalse) = used cond ++ used iftrue ++ used iffalse
 used (YComb body) = used body
+used Error1 = []
+used Error2 = []
 
 rename :: Label -> Label -> Term -> Term
 rename _ _ literal@(Literal _) = literal
@@ -105,6 +106,8 @@ rename old new (If0 cond iftrue iffalse) =
   let r = rename old new
    in If0 (r cond) (r iftrue) (r iffalse)
 rename old new (YComb body) = YComb (rename old new body)
+rename _ _ Error1 = Error1
+rename _ _ Error2 = Error2
 
 substitute :: Label -> Term -> Term -> Term
 substitute _ _ literal@Literal {} = literal
@@ -124,6 +127,8 @@ substitute old new (If0 cond iftrue iffalse) =
   let sub = substitute old new
    in (If0 (sub cond) (sub iftrue) (sub iffalse))
 substitute old new (YComb body) = YComb (substitute old new body)
+substitute _ _ Error1 = Error1
+substitute _ _ Error2 = Error2
 
 -- Evaluation is commonly denoted by ⇓ and is sort of a decomposition of a
 --   closure (a redex and an evaluation context) into a value.
@@ -227,3 +232,5 @@ eval (Closure env (YComb term)) = do
       let selfApplication = (substitute label (YComb abst) body)
       eval (Closure env' selfApplication)
     _ -> Left "Error, it is only possible to take a fixed point of a lambda abstraction in SPCF."
+eval (Closure _ Error1) = error "not implemented"
+eval (Closure _ Error2) = error "not implemented"
