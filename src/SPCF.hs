@@ -1,5 +1,6 @@
-module SPCF (Term (..), Type (..), Value (..), Label, Environment, eval, add, substitute) where
+module SPCF (Term (..), Type (..), Value (..), Label, Environment, eval, substitute) where
 
+import Data.List
 import qualified Data.Map as Map
 import qualified Data.Map.Internal.Debug as Map.Debug
 import Debug.Trace
@@ -28,7 +29,7 @@ instance Show Term where
       beautify :: Int -> Term -> String
       beautify _ (Literal i) = show i
       beautify _ (Variable x) = x
-      beautify i (Lambda var t term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "\\" ++ show var ++ {-": " ++ show t ++ -} ". " ++ beautify 0 term
+      beautify i (Lambda var _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "\\" ++ show var ++ {-": " ++ show t ++ -} ". " ++ beautify 0 term
       beautify i (Apply lhs rhs) = if i == 2 then "(" ++ s ++ ")" else s where s = beautify 1 lhs ++ " " ++ beautify 2 rhs
       beautify i (Succ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Succ " ++ beautify 2 term
       beautify i (Pred term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Pred " ++ beautify 2 term
@@ -65,14 +66,19 @@ data Value
   | Closure Environment Term
   deriving (Show, Eq)
 
-variables :: [Label]
-variables = [[x] | x <- ['a' .. 'z']] ++ [x : show i | i <- [1 :: Int ..], x <- ['a' .. 'z']]
+alphabetLazyList :: [String]
+alphabetLazyList = [[char] | char <- ['a' .. 'z']]
 
-removeAll :: [Label] -> [Label] -> [Label]
-removeAll xs ys = [x | x <- xs, x `notElem` ys]
+alphaNumsLazyList :: [String]
+alphaNumsLazyList = [char : show i | i <- [1 :: Int ..], char <- ['a' .. 'z']]
+
+labels :: [Label]
+labels = alphabetLazyList ++ alphaNumsLazyList
 
 fresh :: [Label] -> Label
-fresh = head . removeAll variables
+fresh usedLabels = case (find (`notElem` usedLabels) labels) of
+  Just label -> label
+  Nothing -> error "Error, somehow all variable names have been used. This shouldn't be possible."
 
 used :: Term -> [Label]
 used (Literal _) = []
@@ -118,8 +124,6 @@ substitute old new (If0 cond iftrue iffalse) =
   let sub = substitute old new
    in (If0 (sub cond) (sub iftrue) (sub iffalse))
 substitute old new (YComb body) = YComb (substitute old new body)
-
--- Todo: Substitution (capture avoiding ofc) when evaluating an abstraction
 
 -- Evaluation is commonly denoted by ⇓ and is sort of a decomposition of a
 --   closure (a redex and an evaluation context) into a value.
@@ -198,7 +202,7 @@ eval (Closure env (Pred term)) = do
         (eval (Closure env term))
       )
   case val of
-    Nat 0 -> Right (Nat 0) -- What is the pred of 0?
+    Nat 0 -> Right (Nat 0)
     Nat i -> Right (Nat (i - 1))
     _ -> Left $ "Cannot apply predeccessor to non natural number" ++ show term
 eval (Closure env (If0 cond iftrue iffalse)) = do
@@ -220,111 +224,6 @@ eval (Closure env (YComb term)) = do
   val <- eval (Closure env term)
   case val of
     Closure env' abst@(Lambda label _ body) -> do
-      let innerBody = Closure env' (YComb abst)
-      let newEnv = Map.insert label innerBody env
-      -- eval (Closure newEnv body)
-      eval (Closure env' (YComb abst))
+      let selfApplication = (substitute label (YComb abst) body)
+      eval (Closure env' selfApplication)
     _ -> Left "Error, it is only possible to take a fixed point of a lambda abstraction in SPCF."
-
--- multerm :: Term -> Term -> Maybe Term
--- multerm (Literal l) (Literal r) = Just $ Literal (l * r)
--- multerm _ _ = Nothing
-
--- mulvals :: Value -> Value -> Either String Value
--- mulvals lhs rhs = do
---   lval <- eval lhs
---   rval <- eval rhs
---   case (lval, rval) of
---     ((Nat l), (Nat r)) -> Right (Nat (l * r))
---     _ -> Left ""
-
--- (a -> a) -> a
--- ((a -> a) -> (a -> a)) -> (a -> a)
--- fix f = f (fix f)
-fix :: (a -> a) -> a
-fix f = x where x = f x
-
-add' :: Int -> Int -> Int
-add' x y = (fix aux) x y
-  where
-    aux :: (Int -> Int -> Int) -> Int -> Int -> Int
-    aux _ 0 b = b
-    aux f a b = f (a - 1) (b + 1)
-
-fix' :: (a -> a -> a) -> a -> a
-fix' f a = x where x = f x a
-
-fact :: Int -> Int
-fact = (fix fac)
-  where
-    fac _ 0 = 1
-    fac f x = x * f (x - 1)
-
--- add :: Term -> Term -> Value
--- add lhs rhs = Closure Map.empty (YComb (aux lhs rhs))
---   where
---     aux :: (Term -> Term -> Term) -> Term -> Term -> Term
---     aux f lhs rhs = If0 rhs lhs (f (Succ rhs) (Pred lhs))
-
--- Definition for addition by recursing on the left term until 0.
--- f x y = (x + y) = | x > 0     f (x - 1) (y + 1)
---                   | otherwise y
-addTerm :: Term
-addTerm =
-  YComb
-    ( Lambda
-        "f"
-        ((Base :-> Base :-> Base) :-> Base :-> Base :-> Base)
-        ( Lambda
-            "x"
-            (Base :-> Base :-> Base)
-            ( Lambda
-                "y"
-                (Base :-> Base)
-                ( If0
-                    (Variable "x")
-                    (Variable "y")
-                    ( Apply
-                        ( Apply
-                            (Variable "f")
-                            (Pred (Variable "x"))
-                        )
-                        (Succ (Variable "y"))
-                    )
-                )
-            )
-        )
-    )
-
--- addTerm :: Term
--- addTerm =
---   YComb
---     ( Lambda
---         "x"
---         (Base :-> Base :-> Base)
---         ( Lambda
---             "y"
---             (Base :-> Base)
---             ( If0
---                 (Variable "x")
---                 (Variable "y")
---                 ( Succ
---                     ( Apply
---                         (Apply (Variable "f") (Pred (Variable "x")))
---                         (Variable "y")
---                     )
---                 )
---             )
---         )
---     )
-
-add :: Term -> Term -> Term
-add x y = Apply (Apply addTerm x) y
-
-mulvals :: Value -> Value -> Either String Value
-mulvals lhs rhs = do
-  lval <- eval lhs
-  rval <- eval rhs
-  case (lval, rval) of
-    ((Nat l), (Nat r)) -> Right (Nat (l * r))
-    _ -> Left ""
