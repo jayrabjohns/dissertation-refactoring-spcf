@@ -1,38 +1,76 @@
 module Main where
 
-import BoundedSPCF (Term (..), Type (..))
-
--- import SPCF (Term (..), Type (..))
+import SPCF
 
 main :: IO ()
-main = print exTerm
+main = do
+  leftAdd <- either fail return (5 <+ 3)
+  rightAdd <- either fail return (5 +> 3)
+  _ <- print $ "left addition: " ++ show leftAdd ++ " -- right addition: " ++ show rightAdd
 
-boundedTerm :: Term
-boundedTerm =
+(<+) :: Int -> Int -> Either String Value
+lhs <+ rhs =
+  let term = (add addTermLeft (Literal lhs) (Literal rhs))
+   in interpret term
+
+(+>) :: Int -> Int -> Either String Value
+lhs +> rhs =
+  let term = (add addTermRight (Literal lhs) (Literal rhs))
+   in interpret term
+
+add :: Term -> Term -> Term -> Term
+add addTerm lhs rhs = Apply (Apply (YComb addTerm) lhs) rhs
+
+addTermLeft :: Term
+addTermLeft =
   Lambda
-    "x"
-    (Base :-> Base)
-    ( Variable
-        "y"
+    "f"
+    (Base :-> Base :-> Base)
+    ( Lambda
+        "x"
+        Base
+        ( Lambda
+            "y"
+            Base
+            ( If0
+                (Variable "x")
+                (Variable "y")
+                ( Succ
+                    ( ( Apply
+                          ( Apply
+                              (Variable "f")
+                              (Pred (Variable "x"))
+                          )
+                          (Variable "y")
+                      )
+                    )
+                )
+            )
+        )
     )
 
-exTerm :: Term
-exTerm =
+addTermRight :: Term
+addTermRight =
   Lambda
-    "m"
-    ((Base :-> Base) :-> (Base :-> Base))
+    "f"
+    (Base :-> Base :-> Base)
     ( Lambda
-        "n"
-        ((Base :-> Base) :-> (Base :-> Base))
+        "x"
+        Base
         ( Lambda
-            "f"
-            (Base :-> Base)
-            ( Lambda
-                "x"
-                Base
-                ( Apply
-                    (Apply (Variable "m") (Variable "f"))
-                    (Apply (Apply (Variable "n") (Variable "f")) (Variable "x"))
+            "y"
+            Base
+            ( If0
+                (Variable "y")
+                (Variable "x")
+                ( Succ
+                    ( Apply
+                        ( Apply
+                            (Variable "f")
+                            (Pred (Variable "y"))
+                        )
+                        (Variable "x")
+                    )
                 )
             )
         )

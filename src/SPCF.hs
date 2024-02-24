@@ -1,4 +1,4 @@
-module SPCF (Term (..), Type (..), Value (..), Label, Environment, eval, substitute) where
+module SPCF (Term (..), Type (..), Value (..), Label, Environment, eval, interpret, substitute) where
 
 import Data.List
 import qualified Data.Map as Map
@@ -18,9 +18,8 @@ data Term
   | If0 Term Term Term
   | Error1
   | Error2
+  | Catch Term
   deriving (Eq)
-
--- \| Catch
 
 instance Show Term where
   show = beautify 0
@@ -36,6 +35,7 @@ instance Show Term where
       beautify i (If0 cond lterm rterm) = if i == 2 then "(" ++ s ++ ")" else s where s = "If0 " ++ beautify 1 cond ++ " then " ++ beautify 1 lterm ++ " else " ++ beautify 1 rterm
       beautify _ Error1 = "error1"
       beautify _ Error2 = "error2"
+      beautify i (Catch term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Catch " ++ beautify 2 term
 
 -- beautify _ (Catch x) = x
 
@@ -90,6 +90,7 @@ used (If0 cond iftrue iffalse) = used cond ++ used iftrue ++ used iffalse
 used (YComb body) = used body
 used Error1 = []
 used Error2 = []
+used (Catch term) = used term
 
 rename :: Label -> Label -> Term -> Term
 rename _ _ literal@(Literal _) = literal
@@ -108,6 +109,7 @@ rename old new (If0 cond iftrue iffalse) =
 rename old new (YComb body) = YComb (rename old new body)
 rename _ _ Error1 = Error1
 rename _ _ Error2 = Error2
+rename old new (Catch body) = Catch (rename old new body)
 
 substitute :: Label -> Term -> Term -> Term
 substitute _ _ literal@Literal {} = literal
@@ -129,6 +131,10 @@ substitute old new (If0 cond iftrue iffalse) =
 substitute old new (YComb body) = YComb (substitute old new body)
 substitute _ _ Error1 = Error1
 substitute _ _ Error2 = Error2
+substitute old new (Catch body) = Catch (substitute old new body)
+
+interpret :: Term -> Either String Value
+interpret term = eval (Closure Map.empty term)
 
 -- Evaluation is commonly denoted by ⇓ and is sort of a decomposition of a
 --   closure (a redex and an evaluation context) into a value.
@@ -232,5 +238,6 @@ eval (Closure env (YComb term)) = do
       let selfApplication = (substitute label (YComb abst) body)
       eval (Closure env' selfApplication)
     _ -> Left "Error, it is only possible to take a fixed point of a lambda abstraction in SPCF."
-eval (Closure _ Error1) = error "not implemented"
-eval (Closure _ Error2) = error "not implemented"
+eval val@(Closure _ Error1) = Right val
+eval val@(Closure _ Error2) = Right val
+eval (Closure env (Catch body)) = error "not implemented"
