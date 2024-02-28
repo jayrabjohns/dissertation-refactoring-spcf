@@ -1,6 +1,5 @@
 module SPCFHelpersSpec where
 
-import qualified Data.Map as Map
 import SPCF
 import Test.HUnit
 

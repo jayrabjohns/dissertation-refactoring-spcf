@@ -81,6 +81,7 @@ library
     import: warnings
 
     exposed-modules: 
+        PCF,
         SPCF,
         BoundedSPCF, 
         STLC,
@@ -105,6 +106,7 @@ test-suite dissertation-refactoring-spcf-test
     other-modules: 
         SimpleExampleSpec,
         MonadicExampleSpec,
+        PCFSpec,
         SPCFSpec,
         SPCFHelpersSpec
     build-depends:
