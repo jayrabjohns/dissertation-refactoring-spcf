@@ -18,7 +18,8 @@ tests =
       evalNestedTerms,
       evalNestedTermsWithCaptureAvoidance,
       evalFixedPointOfLiteral,
-      evalFixedPoint
+      evalFixedPoint,
+      evalError
     ]
 
 evalVariable :: Test
@@ -248,10 +249,18 @@ evalFixedPoint = do
   let addition = add (Variable "f") (Variable "z")
   let env = Map.fromList [("f", (Nat 5)), ("z", (Nat 3))]
   let expectedVal = Nat 8
-
   TestLabel
     "should evaluate term using a fixed point combinator avoiding variable capture"
     $ assertEval addition env expectedVal
+
+evalError :: Test
+evalError = do
+  let term = Error Error1
+  let env = Map.empty
+  let expectedVal = Err Error1
+  TestLabel
+    "should error"
+    $ assertEval term env expectedVal
 
 assertEval :: Term -> Environment -> Value -> Test
 assertEval term env expectedVal =

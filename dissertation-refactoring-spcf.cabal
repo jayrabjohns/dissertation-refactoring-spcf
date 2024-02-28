@@ -83,6 +83,7 @@ library
     exposed-modules: 
         PCF,
         SPCF,
+        SPCFConsts,
         BoundedSPCF, 
         STLC,
         SimpleExample,
