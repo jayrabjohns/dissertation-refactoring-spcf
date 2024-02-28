@@ -1,4 +1,4 @@
-module SPCF (Term (..), Type (..), Value (..), Label, Environment, eval, interpret, substitute) where
+module SPCF (Term (..), Error (..), Type (..), Value (..), Label, Environment, eval, interpret, substitute) where
 
 import Data.List
 import qualified Data.Map as Map
@@ -16,10 +16,22 @@ data Term
   | Pred Term
   | YComb Term
   | If0 Term Term Term
-  | Error1
-  | Error2
+  | Error Error
   | Catch Term
   deriving (Eq)
+
+data Error
+  = Error1
+  | Error2
+  deriving (Eq, Show)
+
+instance Num Term where
+  fromInteger = Literal . fromIntegral
+  (+) = undefined
+  (*) = undefined
+  abs = undefined
+  signum = undefined
+  negate = undefined
 
 instance Show Term where
   show = beautify 0
@@ -33,11 +45,9 @@ instance Show Term where
       beautify i (Pred term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Pred " ++ beautify 2 term
       beautify i (YComb term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Y " ++ beautify 2 term
       beautify i (If0 cond lterm rterm) = if i == 2 then "(" ++ s ++ ")" else s where s = "If0 " ++ beautify 1 cond ++ " then " ++ beautify 1 lterm ++ " else " ++ beautify 1 rterm
-      beautify _ Error1 = "error1"
-      beautify _ Error2 = "error2"
+      beautify _ (Error Error1) = "Error1"
+      beautify _ (Error Error2) = "Error2"
       beautify i (Catch term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Catch " ++ beautify 2 term
-
--- beautify _ (Catch x) = x
 
 -- In the bounded SPCF, the base type will also be bounded. E.g. Boolean or n natural ints
 
@@ -62,8 +72,14 @@ type Environment = Map.Map Label Value
 --   Either a natural number or another closure.
 data Value
   = Nat Int
+  | Err Error
   | Closure Environment Term
-  deriving (Show, Eq)
+  deriving (Eq)
+
+instance Show Value where
+  show (Nat i) = show i
+  show (Err err) = show err
+  show (Closure env term) = "Closure " ++ show env ++ show term
 
 alphabetLazyList :: [String]
 alphabetLazyList = [[char] | char <- ['a' .. 'z']]
@@ -88,8 +104,7 @@ used (Succ body) = used body
 used (Pred body) = used body
 used (If0 cond iftrue iffalse) = used cond ++ used iftrue ++ used iffalse
 used (YComb body) = used body
-used Error1 = []
-used Error2 = []
+used (Error _) = []
 used (Catch term) = used term
 
 rename :: Label -> Label -> Term -> Term
@@ -107,8 +122,7 @@ rename old new (If0 cond iftrue iffalse) =
   let r = rename old new
    in If0 (r cond) (r iftrue) (r iffalse)
 rename old new (YComb body) = YComb (rename old new body)
-rename _ _ Error1 = Error1
-rename _ _ Error2 = Error2
+rename _ _ err@(Error _) = err
 rename old new (Catch body) = Catch (rename old new body)
 
 substitute :: Label -> Term -> Term -> Term
@@ -129,8 +143,7 @@ substitute old new (If0 cond iftrue iffalse) =
   let sub = substitute old new
    in (If0 (sub cond) (sub iftrue) (sub iffalse))
 substitute old new (YComb body) = YComb (substitute old new body)
-substitute _ _ Error1 = Error1
-substitute _ _ Error2 = Error2
+substitute _ _ err@(Error _) = err
 substitute old new (Catch body) = Catch (substitute old new body)
 
 interpret :: Term -> Either String Value
@@ -143,6 +156,7 @@ interpret term = eval (Closure Map.empty term)
 --   (either a nautral number or a closure)
 eval :: Value -> Either String Value
 eval (Nat i) = Right (Nat i)
+eval err@(Err _) = Right err
 eval (Closure _ (Literal i)) = Right (Nat i)
 eval (Closure env (Variable label)) =
   trace
@@ -225,12 +239,13 @@ eval (Closure env (If0 cond iftrue iffalse)) = do
   case val of
     Nat 0 -> eval (Closure env iftrue)
     Nat _ -> eval (Closure env iffalse)
+    err@(Err _) -> Right err
     _ ->
       Left $
-        "Cannot check if non numerical value is 0."
+        "Cannot check if non numerical value is 0. "
           ++ "Specifically, "
           ++ show cond
-          ++ "doesn't evaluate to a number."
+          ++ " doesn't evaluate to a number."
 eval (Closure env (YComb term)) = do
   val <- eval (Closure env term)
   case val of
@@ -238,6 +253,5 @@ eval (Closure env (YComb term)) = do
       let selfApplication = (substitute label (YComb abst) body)
       eval (Closure env' selfApplication)
     _ -> Left "Error, it is only possible to take a fixed point of a lambda abstraction in SPCF."
-eval val@(Closure _ Error1) = Right val
-eval val@(Closure _ Error2) = Right val
+eval (Closure _ (Error err)) = Right (Err err)
 eval (Closure env (Catch body)) = error "not implemented"
