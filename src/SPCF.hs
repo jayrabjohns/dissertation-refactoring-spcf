@@ -146,6 +146,18 @@ substitute old new (YComb body) = YComb (substitute old new body)
 substitute _ _ err@(Error _) = err
 substitute old new (Catch body) = Catch (substitute old new body)
 
+mapTerm :: (Term -> Term) -> Term -> Term
+mapTerm _ lit@(Literal _) = lit
+mapTerm _ var@(Variable _) = var
+mapTerm f (Lambda label typ body) = Lambda label typ (f body)
+mapTerm f (Apply lhs rhs) = Apply (f lhs) (f rhs)
+mapTerm f (Succ body) = Succ (f body)
+mapTerm f (Pred body) = Pred (f body)
+mapTerm f (If0 p l r) = If0 (f p) (f l) (f r)
+mapTerm f (YComb body) = YComb (f body)
+mapTerm _ err@(Error _) = err
+mapTerm f (Catch body) = Catch (f body)
+
 interpret :: Term -> Either String Value
 interpret term = eval (Closure Map.empty term)
 
@@ -252,6 +264,19 @@ eval (Closure env (YComb term)) = do
     Closure env' abst@(Lambda label _ body) -> do
       let selfApplication = (substitute label (YComb abst) body)
       eval (Closure env' selfApplication)
-    _ -> Left "Error, it is only possible to take a fixed point of a lambda abstraction in SPCF."
+    _ -> Left "Error, it is only possible to take a fixed point of a lambda abstraction"
 eval (Closure _ (Error err)) = Right (Err err)
-eval (Closure env (Catch body)) = error "not implemented"
+-- Following Laird's definition of catch which has ground type rather than
+--   Cartwreight & Fallensien's family of t -> o typed operators.
+-- Need a way to track the index of each argument. Perhaps store a special variable in the context?
+-- THe alternative would be either re-writing the eval function inside of the case for catch,
+-- or passing in a special parameter counting the index / having a custom monad tracking hte same state
+eval (Closure env (Catch body)) = do
+  case body of
+    Variable label -> (trace ("Caught variable " ++ label))
+    term -> eval $ Closure env (mapTerm Catch term)
+
+-- val <- eval (Closure env body)
+-- case val of
+--   (Closure env' (Lambda label _ body)) -> undefined
+--   _ -> undefined
