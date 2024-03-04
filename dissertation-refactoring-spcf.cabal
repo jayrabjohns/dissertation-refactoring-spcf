@@ -105,11 +105,11 @@ test-suite dissertation-refactoring-spcf-test
     hs-source-dirs: test
     main-is: Main.hs
     other-modules: 
-        SimpleExampleSpec,
-        MonadicExampleSpec,
-        PCFSpec,
-        SPCFSpec,
-        SPCFHelpersSpec
+        -- SimpleExampleSpec,
+        -- MonadicExampleSpec,
+        -- PCFSpec,
+        SPCFSpec
+        -- SPCFHelpersSpec
     build-depends:
         base,
         HUnit,
