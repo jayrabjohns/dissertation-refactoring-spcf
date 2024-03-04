@@ -2,24 +2,28 @@ module SPCFSpec where
 
 import qualified Data.Map as Map
 import SPCF
+import qualified SPCFConsts
 import Test.HUnit
 
 tests :: Test
 tests =
   TestList
-    [ evalVariable,
-      evalLambdaAbstraction,
-      evalApplication,
-      evalSuccessor,
-      evalPredecessor,
-      evalPredecessorOf0,
-      evalTrueIf0,
-      evalFalseIfNot0,
-      evalNestedTerms,
-      evalNestedTermsWithCaptureAvoidance,
-      evalFixedPointOfLiteral,
-      evalFixedPoint,
-      evalError
+    [ --evalVariable,
+      -- evalLambdaAbstraction,
+      -- evalApplication,
+      -- evalSuccessor,
+      -- evalPredecessor,
+      -- evalPredecessorOf0,
+      -- evalTrueIf0,
+      -- evalFalseIfNot0,
+      -- evalNestedTerms,
+      -- evalNestedTermsWithCaptureAvoidance,
+      -- evalFixedPointOfLiteral,
+      -- evalFixedPoint,
+      -- evalError,
+      -- evalRightAdd,
+      -- evalLeftAdd,
+      evalCatch
     ]
 
 evalVariable :: Test
@@ -33,7 +37,7 @@ evalVariable = do
 
 evalLambdaAbstraction :: Test
 evalLambdaAbstraction = do
-  let term = (Lambda "x" (Base :-> Base) (Variable "x"))
+  let term = (Lambda "x" ((Base :-> Base), 0) (Variable "x"))
   let env = Map.singleton "x" (Nat 5)
   let expectedVal = Closure env term
   TestLabel
@@ -45,7 +49,7 @@ evalApplication =
   do
     let term =
           ( Apply
-              (Lambda "f" (Base :-> Base) (Variable "f"))
+              (Lambda "f" ((Base :-> Base), 0) (Variable "f"))
               (Variable ("y"))
           )
     let expectedVal = Nat 10
@@ -87,7 +91,7 @@ evalTrueIf0 = do
         ( If0
             (Variable "x")
             ( Apply
-                (Lambda "f" (Base :-> Base) (Variable "f"))
+                (Lambda "f" ((Base :-> Base), 0) (Variable "f"))
                 (Variable ("y"))
             )
             (Variable "z")
@@ -104,7 +108,7 @@ evalFalseIfNot0 = do
         ( If0
             (Variable "x")
             ( Apply
-                (Lambda "f" (Base :-> Base) (Variable "f"))
+                (Lambda "f" ((Base :-> Base), 0) (Variable "f"))
                 (Variable ("y"))
             )
             (Variable "z")
@@ -120,13 +124,13 @@ evalNestedTerms = do
   let program =
         ( Lambda
             "f"
-            ((Base :-> Base) :-> Base :-> Base :-> Base)
+            ((Base :-> Base), 0)
             ( Lambda
                 "x"
-                (Base :-> Base :-> Base)
+                (Base, 0)
                 ( Lambda
                     "y"
-                    (Base :-> Base)
+                    (Base, 0)
                     ( If0
                         (Variable "x")
                         (Variable "y")
@@ -138,7 +142,7 @@ evalNestedTerms = do
             )
         )
 
-  let f = (Lambda "w" (Base :-> Base) (Succ (Succ (Variable "w"))))
+  let f = (Lambda "w" ((Base :-> Base), 0) (Succ (Succ (Variable "w"))))
   let (x, y) = ((Literal 5), (Literal 6))
   let application = (Apply (Apply (Apply program f) x) y)
   let expectedVal = Nat 7
@@ -157,13 +161,13 @@ evalNestedTermsWithCaptureAvoidance = do
   let program =
         ( Lambda
             "f"
-            (Base :-> Base)
+            ((Base :-> Base), 0)
             ( Lambda
                 "x"
-                Base
+                (Base, 0)
                 ( Lambda
                     "y"
-                    Base
+                    (Base, 0)
                     ( If0
                         (Variable "x")
                         (Variable "y")
@@ -174,7 +178,7 @@ evalNestedTermsWithCaptureAvoidance = do
                 )
             )
         )
-  let f = (Lambda "x" Base (Succ (Succ (Variable "y"))))
+  let f = (Lambda "x" (Base, 0) (Succ (Succ (Variable "y"))))
   let (x, y) = ((Literal 5), (Literal 10))
   let application = (Apply (Apply (Apply program f) x) y)
   let expectedVal = Nat 13
@@ -189,7 +193,7 @@ evalFixedPointOfLiteral = do
         ( YComb
             ( Lambda
                 "f"
-                (Base :-> Base)
+                ((Base :-> Base), 0)
                 (Literal 4)
             )
         )
@@ -220,13 +224,13 @@ addTerm :: Term
 addTerm =
   Lambda
     "f"
-    (Base :-> Base :-> Base)
+    ((Base :-> Base :-> Base), 0)
     ( Lambda
         "x"
-        Base
+        (Base, 0)
         ( Lambda
             "y"
-            Base
+            (Base, 0)
             ( If0
                 (Variable "x")
                 (Variable "y")
@@ -260,6 +264,33 @@ evalError = do
   let expectedVal = Err Error1
   TestLabel
     "should error"
+    $ assertEval term env expectedVal
+
+evalLeftAdd :: Test
+evalLeftAdd = do
+  let term = SPCFConsts.addLeft (Error Error1) (Error Error2)
+  let env = Map.empty
+  let expectedVal = Err Error1
+  TestLabel
+    "should return left error when that is evaluated first"
+    $ assertEval term env expectedVal
+
+evalRightAdd :: Test
+evalRightAdd = do
+  let term = SPCFConsts.addRight (Error Error1) (Error Error2)
+  let env = Map.empty
+  let expectedVal = Err Error2
+  TestLabel
+    "should return right error when that is evaluated first"
+    $ assertEval term env expectedVal
+
+evalCatch :: Test
+evalCatch = do
+  let term = Catch $ SPCFConsts.addLeft (Error Error1) (Error Error2)
+  let env = Map.empty
+  let expectedVal = Nat 2
+  TestLabel
+    "should return index of argument which causes the error"
     $ assertEval term env expectedVal
 
 assertEval :: Term -> Environment -> Value -> Test

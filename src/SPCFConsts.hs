@@ -1,4 +1,4 @@
-module SPCFConsts (apply, omega, (<+), (+>)) where
+module SPCFConsts (apply, omega, (<+), (+>), addLeft, addRight) where
 
 import SPCF
 
@@ -10,7 +10,7 @@ apply term (arg : args) = apply (Apply term arg) args
 
 -- Prototypical divergent expression
 omega :: Term
-omega = YComb $ Lambda "x" Base (Variable "x")
+omega = YComb $ Lambda "x" (Base, 0) (Variable "x")
 
 -- Addition operator.
 --   Recurses on the left argument, also known as left addition.
@@ -36,13 +36,13 @@ addLeftTerm :: Term
 addLeftTerm =
   Lambda
     "f"
-    (Base :-> Base :-> Base)
+    ((Base :-> Base :-> Base), 0)
     ( Lambda
         "x"
-        Base
+        (Base, 0)
         ( Lambda
             "y"
-            Base
+            (Base, 0)
             ( If0
                 (Variable "x")
                 (Variable "y")
@@ -66,13 +66,13 @@ addRightTerm :: Term
 addRightTerm =
   Lambda
     "f"
-    (Base :-> Base :-> Base)
+    ((Base :-> Base :-> Base), 0)
     ( Lambda
         "x"
-        Base
+        (Base, 0)
         ( Lambda
             "y"
-            Base
+            (Base, 0)
             ( If0
                 (Variable "y")
                 (Variable "x")

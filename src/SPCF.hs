@@ -7,10 +7,14 @@ import Debug.Trace
 
 type Label = String
 
+type ArgumentIndex = Int
+
+type Metadata = (Type, ArgumentIndex)
+
 data Term
   = Literal Int
   | Variable Label
-  | Lambda Label Type Term
+  | Lambda Label Metadata Term
   | Apply Term Term
   | Succ Term
   | Pred Term
@@ -146,20 +150,23 @@ substitute old new (YComb body) = YComb (substitute old new body)
 substitute _ _ err@(Error _) = err
 substitute old new (Catch body) = Catch (substitute old new body)
 
-mapTerm :: (Term -> Term) -> Term -> Term
-mapTerm _ lit@(Literal _) = lit
-mapTerm _ var@(Variable _) = var
-mapTerm f (Lambda label typ body) = Lambda label typ (f body)
-mapTerm f (Apply lhs rhs) = Apply (f lhs) (f rhs)
-mapTerm f (Succ body) = Succ (f body)
-mapTerm f (Pred body) = Pred (f body)
-mapTerm f (If0 p l r) = If0 (f p) (f l) (f r)
-mapTerm f (YComb body) = YComb (f body)
-mapTerm _ err@(Error _) = err
-mapTerm f (Catch body) = Catch (f body)
+mapOnce :: (Term -> Term) -> Term -> Term
+mapOnce _ lit@(Literal _) = lit
+mapOnce _ var@(Variable _) = var
+mapOnce f (Lambda label typ body) = Lambda label typ (f body)
+mapOnce f (Apply lhs rhs) = Apply (f lhs) (f rhs)
+mapOnce f (Succ body) = Succ (f body)
+mapOnce f (Pred body) = Pred (f body)
+mapOnce f (If0 p l r) = If0 (f p) (f l) (f r)
+mapOnce f (YComb body) = YComb (f body)
+mapOnce _ err@(Error _) = err
+mapOnce f (Catch body) = Catch (f body)
 
 interpret :: Term -> Either String Value
 interpret term = eval (Closure Map.empty term)
+
+numParamsLabel :: String
+numParamsLabel = "num_params"
 
 -- Evaluation is commonly denoted by ⇓ and is sort of a decomposition of a
 --   closure (a redex and an evaluation context) into a value.
@@ -181,7 +188,11 @@ eval (Closure env (Variable label)) =
         Just val -> Right val
         Nothing -> Left ("Undefined variable " ++ label)
     )
-eval abstraction@(Closure _ Lambda {}) = Right abstraction
+eval (Closure env (Lambda label (typ, _) body)) = do
+  let (env', argumentIndex) = case Map.lookup numParamsLabel env of
+        Just (Nat i) -> (Map.insert numParamsLabel (Nat (i + 1)) env, i + 1)
+        _ -> (Map.insert numParamsLabel (Nat 1) env, 1)
+  return $ Closure env' (Lambda label (typ, argumentIndex) body)
 eval (Closure env (Apply lterm rterm)) = do
   -- Call by value because evaluating argument before application
   lval <- eval (Closure env lterm)
@@ -269,14 +280,19 @@ eval (Closure _ (Error err)) = Right (Err err)
 -- Following Laird's definition of catch which has ground type rather than
 --   Cartwreight & Fallensien's family of t -> o typed operators.
 -- Need a way to track the index of each argument. Perhaps store a special variable in the context?
--- THe alternative would be either re-writing the eval function inside of the case for catch,
+-- The alternative would be either re-writing the eval function inside of the case for catch,
 -- or passing in a special parameter counting the index / having a custom monad tracking hte same state
 eval (Closure env (Catch body)) = do
-  case body of
-    Variable label -> (trace ("Caught variable " ++ label))
-    term -> eval $ Closure env (mapTerm Catch term)
-
--- val <- eval (Closure env body)
--- case val of
---   (Closure env' (Lambda label _ body)) -> undefined
---   _ -> undefined
+  trace ("Catching in " ++ show body)
+    (case body of
+      Variable label -> case Map.lookup numParamsLabel env of
+        Just (Nat i) ->
+          trace
+            ("Caught variable " ++ label ++ " with index " ++ show i)
+            return $ Nat i
+        _ ->
+          Left $
+            "Error counting argument indices, somehow the special variable "
+              ++ numParamsLabel
+              ++ " exists in the context"
+      term -> eval $ Closure env (mapOnce Catch term))
