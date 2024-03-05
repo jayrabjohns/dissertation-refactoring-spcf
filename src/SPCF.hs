@@ -7,14 +7,14 @@ import Debug.Trace
 
 type Label = String
 
-type ArgumentIndex = Int
+-- type ArgumentIndex = Int
 
-type Metadata = (Type, ArgumentIndex)
+-- type Metadata = (Type, ArgumentIndex)
 
 data Term
   = Literal Int
   | Variable Label
-  | Lambda Label Metadata Term
+  | Lambda Label Type Term
   | Apply Term Term
   | Succ Term
   | Pred Term
@@ -150,17 +150,29 @@ substitute old new (YComb body) = YComb (substitute old new body)
 substitute _ _ err@(Error _) = err
 substitute old new (Catch body) = Catch (substitute old new body)
 
-mapOnce :: (Term -> Term) -> Term -> Term
-mapOnce _ lit@(Literal _) = lit
-mapOnce _ var@(Variable _) = var
-mapOnce f (Lambda label typ body) = Lambda label typ (f body)
-mapOnce f (Apply lhs rhs) = Apply (f lhs) (f rhs)
-mapOnce f (Succ body) = Succ (f body)
-mapOnce f (Pred body) = Pred (f body)
-mapOnce f (If0 p l r) = If0 (f p) (f l) (f r)
-mapOnce f (YComb body) = YComb (f body)
-mapOnce _ err@(Error _) = err
-mapOnce f (Catch body) = Catch (f body)
+-- mapOnce :: (Term -> Term) -> Term -> Term
+-- mapOnce _ lit@(Literal _) = lit
+-- mapOnce _ var@(Variable _) = var
+-- mapOnce f (Lambda label typ body) = Lambda label typ (f body)
+-- mapOnce f (Apply lhs rhs) = Apply (f lhs) (f rhs)
+-- mapOnce f (Succ body) = Succ (f body)
+-- mapOnce f (Pred body) = Pred (f body)
+-- mapOnce f (If0 p l r) = If0 (f p) (f l) (f r)
+-- mapOnce f (YComb body) = YComb (f body)
+-- mapOnce _ err@(Error _) = err
+-- mapOnce f (Catch body) = Catch (f body)
+
+foldrTerm :: (Term -> Term) -> Term -> Term
+foldrTerm f lit@(Literal _) = f lit
+foldrTerm f var@(Variable _) = f var
+foldrTerm f (Lambda _ _ body) = f body
+foldrTerm f (Apply _ rhs) = f rhs
+foldrTerm f (Succ body) = f body
+foldrTerm f (Pred body) = f body
+foldrTerm f (If0 p _ _) = f p
+foldrTerm f (YComb body) = f body
+foldrTerm f err@(Error _) = f err
+foldrTerm f (Catch body) = f body
 
 interpret :: Term -> Either String Value
 interpret term = eval (Closure Map.empty term)
@@ -188,11 +200,7 @@ eval (Closure env (Variable label)) =
         Just val -> Right val
         Nothing -> Left ("Undefined variable " ++ label)
     )
-eval (Closure env (Lambda label (typ, _) body)) = do
-  let (env', argumentIndex) = case Map.lookup numParamsLabel env of
-        Just (Nat i) -> (Map.insert numParamsLabel (Nat (i + 1)) env, i + 1)
-        _ -> (Map.insert numParamsLabel (Nat 1) env, 1)
-  return $ Closure env' (Lambda label (typ, argumentIndex) body)
+eval l@(Closure _ Lambda {}) = return l
 eval (Closure env (Apply lterm rterm)) = do
   -- Call by value because evaluating argument before application
   lval <- eval (Closure env lterm)
@@ -283,16 +291,53 @@ eval (Closure _ (Error err)) = Right (Err err)
 -- The alternative would be either re-writing the eval function inside of the case for catch,
 -- or passing in a special parameter counting the index / having a custom monad tracking hte same state
 eval (Closure env (Catch body)) = do
-  trace ("Catching in " ++ show body)
-    (case body of
-      Variable label -> case Map.lookup numParamsLabel env of
-        Just (Nat i) ->
-          trace
-            ("Caught variable " ++ label ++ " with index " ++ show i)
-            return $ Nat i
-        _ ->
-          Left $
-            "Error counting argument indices, somehow the special variable "
-              ++ numParamsLabel
-              ++ " exists in the context"
-      term -> eval $ Closure env (mapOnce Catch term))
+  let (i, _) = catch body []
+  return $ Nat i
+
+-- trace
+--   ("Catching in " ++ show body)
+--   ( case body of
+--       Variable label -> case Map.lookup numParamsLabel env of
+--         Just (Nat i) ->
+--           trace
+--             ("Caught variable " ++ label ++ " with index " ++ show i)
+--             return
+--             $ Nat i
+--         _ ->
+--           Left $
+--             "Error counting argument indices, somehow the special variable "
+--               ++ numParamsLabel
+--               ++ " doesn't exist in the current context"
+--       -- Lambda label (_, i) body -> undefined
+--       Lambda label (typ, _) body -> do
+--         let (env', argumentIndex) = case Map.lookup numParamsLabel env of
+--               Just (Nat i) -> (Map.insert numParamsLabel (Nat (i + 1)) env, i + 1)
+--               _ -> (Map.insert numParamsLabel (Nat 1) env, 1)
+--         return $ Closure env' (Lambda label (typ, argumentIndex) body)
+--       term -> eval $ Closure env (foldrTerm Catch term)
+--   )
+
+catch :: Term -> [Label] -> (Int, Term)
+catch lit@(Literal i) args = (i + (length args), lit)
+catch err@(Error _) _ = (-1, err)
+catch var@(Variable label) args = case elemIndex label args of
+  Just i -> (i + 1, var) -- index starts from 1 not 0
+  Nothing -> undefined
+catch (Lambda label _ body) args = catch body (args ++ [label]) -- TODO: ensure variable shadowing works as expected
+catch (Apply lhs rhs) args =
+  -- do rhs first then lhs
+  let ret@(_, term) = catch rhs args
+   in case term of
+        Variable {} -> ret
+        _ -> catch lhs args
+catch (Succ body) args = catch body args
+catch (Pred body) args = catch body args
+catch (If0 predicate tt ff) args =
+  let ret@(_, term) = catch predicate args
+   in case term of
+        Variable {} -> ret
+        Literal 0 -> catch tt args
+        Literal _ -> catch ff args
+        _ -> error "impossible"
+catch (YComb body) args = catch body args -- this is where it gets funny
+catch (Catch body) args = catch body args

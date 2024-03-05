@@ -1,6 +1,7 @@
 module SPCFSpec where
 
 import qualified Data.Map as Map
+import Debug.Trace
 import SPCF
 import qualified SPCFConsts
 import Test.HUnit
@@ -8,7 +9,7 @@ import Test.HUnit
 tests :: Test
 tests =
   TestList
-    [ --evalVariable,
+    [ -- evalVariable,
       -- evalLambdaAbstraction,
       -- evalApplication,
       -- evalSuccessor,
@@ -23,7 +24,9 @@ tests =
       -- evalError,
       -- evalRightAdd,
       -- evalLeftAdd,
-      evalCatch
+      evalCatchOnSimpleAbstraction,
+      evalCatch,
+      evalCatchFixedPoint
     ]
 
 evalVariable :: Test
@@ -37,7 +40,7 @@ evalVariable = do
 
 evalLambdaAbstraction :: Test
 evalLambdaAbstraction = do
-  let term = (Lambda "x" ((Base :-> Base), 0) (Variable "x"))
+  let term = (Lambda "x" (Base :-> Base) (Variable "x"))
   let env = Map.singleton "x" (Nat 5)
   let expectedVal = Closure env term
   TestLabel
@@ -49,7 +52,7 @@ evalApplication =
   do
     let term =
           ( Apply
-              (Lambda "f" ((Base :-> Base), 0) (Variable "f"))
+              (Lambda "f" (Base :-> Base) (Variable "f"))
               (Variable ("y"))
           )
     let expectedVal = Nat 10
@@ -91,7 +94,7 @@ evalTrueIf0 = do
         ( If0
             (Variable "x")
             ( Apply
-                (Lambda "f" ((Base :-> Base), 0) (Variable "f"))
+                (Lambda "f" (Base :-> Base) (Variable "f"))
                 (Variable ("y"))
             )
             (Variable "z")
@@ -108,7 +111,7 @@ evalFalseIfNot0 = do
         ( If0
             (Variable "x")
             ( Apply
-                (Lambda "f" ((Base :-> Base), 0) (Variable "f"))
+                (Lambda "f" (Base :-> Base) (Variable "f"))
                 (Variable ("y"))
             )
             (Variable "z")
@@ -124,13 +127,13 @@ evalNestedTerms = do
   let program =
         ( Lambda
             "f"
-            ((Base :-> Base), 0)
+            (Base :-> Base)
             ( Lambda
                 "x"
-                (Base, 0)
+                Base
                 ( Lambda
                     "y"
-                    (Base, 0)
+                    Base
                     ( If0
                         (Variable "x")
                         (Variable "y")
@@ -142,7 +145,7 @@ evalNestedTerms = do
             )
         )
 
-  let f = (Lambda "w" ((Base :-> Base), 0) (Succ (Succ (Variable "w"))))
+  let f = (Lambda "w" (Base :-> Base) (Succ (Succ (Variable "w"))))
   let (x, y) = ((Literal 5), (Literal 6))
   let application = (Apply (Apply (Apply program f) x) y)
   let expectedVal = Nat 7
@@ -161,13 +164,13 @@ evalNestedTermsWithCaptureAvoidance = do
   let program =
         ( Lambda
             "f"
-            ((Base :-> Base), 0)
+            (Base :-> Base)
             ( Lambda
                 "x"
-                (Base, 0)
+                Base
                 ( Lambda
                     "y"
-                    (Base, 0)
+                    Base
                     ( If0
                         (Variable "x")
                         (Variable "y")
@@ -178,7 +181,7 @@ evalNestedTermsWithCaptureAvoidance = do
                 )
             )
         )
-  let f = (Lambda "x" (Base, 0) (Succ (Succ (Variable "y"))))
+  let f = (Lambda "x" Base (Succ (Succ (Variable "y"))))
   let (x, y) = ((Literal 5), (Literal 10))
   let application = (Apply (Apply (Apply program f) x) y)
   let expectedVal = Nat 13
@@ -193,7 +196,7 @@ evalFixedPointOfLiteral = do
         ( YComb
             ( Lambda
                 "f"
-                ((Base :-> Base), 0)
+                (Base :-> Base)
                 (Literal 4)
             )
         )
@@ -224,13 +227,13 @@ addTerm :: Term
 addTerm =
   Lambda
     "f"
-    ((Base :-> Base :-> Base), 0)
+    (Base :-> Base :-> Base)
     ( Lambda
         "x"
-        (Base, 0)
+        Base
         ( Lambda
             "y"
-            (Base, 0)
+            Base
             ( If0
                 (Variable "x")
                 (Variable "y")
@@ -284,8 +287,47 @@ evalRightAdd = do
     "should return right error when that is evaluated first"
     $ assertEval term env expectedVal
 
+evalCatchOnSimpleAbstraction :: Test
+evalCatchOnSimpleAbstraction = do
+  let term = Catch $ Lambda "f" Base $ Variable "f"
+  let env = Map.empty
+  let expectedVal = Nat 1
+  TestLabel
+    "should return 1 with 1 argument term"
+    $ assertEval term env expectedVal
+
 evalCatch :: Test
 evalCatch = do
+  let term =
+        Catch
+          ( Lambda
+              "f"
+              (Base :-> Base)
+              ( Lambda
+                  "x"
+                  Base
+                  ( Lambda
+                      "y"
+                      Base
+                      ( If0
+                          (Literal 1) -- (Variable "x")
+                          (Variable "y")
+                          ( Succ
+                              (Apply (Variable "f") (Pred (Literal 1 {-(Variable "x")-})))
+                          )
+                      )
+                  )
+              )
+          )
+  -- let term = Catch $ SPCFConsts.addLeft (Error Error1) (Error Error2)
+  let env = Map.empty
+  let expectedVal = Nat 3
+  TestLabel
+    "should return index of argument which causes the error"
+    $ assertEval term env expectedVal
+
+evalCatchFixedPoint :: Test
+evalCatchFixedPoint = do
   let term = Catch $ SPCFConsts.addLeft (Error Error1) (Error Error2)
   let env = Map.empty
   let expectedVal = Nat 2
