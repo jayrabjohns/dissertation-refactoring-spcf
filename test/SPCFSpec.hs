@@ -1,7 +1,6 @@
 module SPCFSpec where
 
 import qualified Data.Map as Map
-import Debug.Trace
 import SPCF
 import qualified SPCFConsts
 import Test.HUnit
@@ -9,25 +8,36 @@ import Test.HUnit
 tests :: Test
 tests =
   TestList
-    [ -- evalVariable,
-      -- evalLambdaAbstraction,
-      -- evalApplication,
-      -- evalSuccessor,
-      -- evalPredecessor,
-      -- evalPredecessorOf0,
-      -- evalTrueIf0,
-      -- evalFalseIfNot0,
-      -- evalNestedTerms,
-      -- evalNestedTermsWithCaptureAvoidance,
-      -- evalFixedPointOfLiteral,
-      -- evalFixedPoint,
-      -- evalError,
-      -- evalRightAdd,
-      -- evalLeftAdd,
-      evalCatchOnSimpleAbstraction,
-      evalCatch,
-      evalCatchFixedPoint
+    [ evalVariable,
+      evalLambdaAbstraction,
+      evalApplication,
+      evalSuccessor,
+      evalPredecessor,
+      evalPredecessorOf0,
+      evalTrueIf0,
+      evalFalseIfNot0,
+      evalNestedTerms,
+      evalNestedTermsWithCaptureAvoidance,
+      evalFixedPointOfLiteral,
+      evalFixedPoint,
+      evalError,
+      evalRightAdd,
+      evalLeftAdd,
+      catchOnLiteral,
+      catchOnError,
+      catchOnSimpleAbstraction,
+      catchApplicationRhsFirst,
+      catchApplicationLhsSecond,
+      catchIsErrorSensitive,
+      catchOnIf0Condition,
+      catchOnIf0True,
+      catchOnIf0False,
+      catchFixedPoint,
+      catchHigherOrderFunction
     ]
+
+emptyEnv :: Environment
+emptyEnv = Map.empty
 
 evalVariable :: Test
 evalVariable = do
@@ -122,37 +132,38 @@ evalFalseIfNot0 = do
     "if0 should evaluate to right term when condition is 0"
     $ assertEval term env expectedVal
 
-evalNestedTerms :: Test
-evalNestedTerms = do
-  let program =
+-- \fxy. If0 x then y else (succ (f (pred x)))
+conditionalWithHigherOrderFuncTerm :: Term
+conditionalWithHigherOrderFuncTerm =
+  Lambda
+    "f"
+    (Base :-> Base)
+    ( Lambda
+        "x"
+        Base
         ( Lambda
-            "f"
-            (Base :-> Base)
-            ( Lambda
-                "x"
-                Base
-                ( Lambda
-                    "y"
-                    Base
-                    ( If0
-                        (Variable "x")
-                        (Variable "y")
-                        ( Succ
-                            (Apply (Variable "f") (Pred (Variable "x")))
-                        )
-                    )
+            "y"
+            Base
+            ( If0
+                (Variable "x")
+                (Variable "y")
+                ( Succ
+                    (Apply (Variable "f") (Pred (Variable "x")))
                 )
             )
         )
+    )
 
+evalNestedTerms :: Test
+evalNestedTerms = do
+  let program = conditionalWithHigherOrderFuncTerm
   let f = (Lambda "w" (Base :-> Base) (Succ (Succ (Variable "w"))))
   let (x, y) = ((Literal 5), (Literal 6))
   let application = (Apply (Apply (Apply program f) x) y)
   let expectedVal = Nat 7
-  let env = Map.empty
   TestLabel
     "should evaluate nested expression correctly"
-    $ assertEval application env expectedVal
+    $ assertEval application emptyEnv expectedVal
 
 evalNestedTermsWithCaptureAvoidance :: Test
 evalNestedTermsWithCaptureAvoidance = do
@@ -161,34 +172,14 @@ evalNestedTermsWithCaptureAvoidance = do
   --   f adds two to y
   --   the result of f(x) has 1 added to it and is the final result
   --   so program(f, x, y) -> y + 3
-  let program =
-        ( Lambda
-            "f"
-            (Base :-> Base)
-            ( Lambda
-                "x"
-                Base
-                ( Lambda
-                    "y"
-                    Base
-                    ( If0
-                        (Variable "x")
-                        (Variable "y")
-                        ( Succ
-                            (Apply (Variable "f") (Pred (Variable "x")))
-                        )
-                    )
-                )
-            )
-        )
   let f = (Lambda "x" Base (Succ (Succ (Variable "y"))))
   let (x, y) = ((Literal 5), (Literal 10))
+  let program = conditionalWithHigherOrderFuncTerm
   let application = (Apply (Apply (Apply program f) x) y)
   let expectedVal = Nat 13
-  let env = Map.empty
   TestLabel
     "should avoid variable capture when evaluating nested terms"
-    $ assertEval application env expectedVal
+    $ assertEval application emptyEnv expectedVal
 
 evalFixedPointOfLiteral :: Test
 evalFixedPointOfLiteral = do
@@ -201,10 +192,9 @@ evalFixedPointOfLiteral = do
             )
         )
   let expectedVal = Nat 4
-  let env = Map.empty
   TestLabel
     "fixed point of a literal should evaluate to the given literal"
-    $ assertEval term env expectedVal
+    $ assertEval term emptyEnv expectedVal
 
 -- fix :: (a -> a) -> a
 -- fix f = x where x = f x
@@ -263,77 +253,128 @@ evalFixedPoint = do
 evalError :: Test
 evalError = do
   let term = Error Error1
-  let env = Map.empty
   let expectedVal = Err Error1
   TestLabel
     "should error"
-    $ assertEval term env expectedVal
+    $ assertEval term emptyEnv expectedVal
 
 evalLeftAdd :: Test
 evalLeftAdd = do
   let term = SPCFConsts.addLeft (Error Error1) (Error Error2)
-  let env = Map.empty
   let expectedVal = Err Error1
   TestLabel
     "should return left error when that is evaluated first"
-    $ assertEval term env expectedVal
+    $ assertEval term emptyEnv expectedVal
 
 evalRightAdd :: Test
 evalRightAdd = do
   let term = SPCFConsts.addRight (Error Error1) (Error Error2)
-  let env = Map.empty
   let expectedVal = Err Error2
   TestLabel
     "should return right error when that is evaluated first"
-    $ assertEval term env expectedVal
+    $ assertEval term emptyEnv expectedVal
 
-evalCatchOnSimpleAbstraction :: Test
-evalCatchOnSimpleAbstraction = do
+catchOnLiteral :: Test
+catchOnLiteral = do
+  let term = Catch $ Lambda "x" Base $ Lambda "y" Base $ Lambda "z" Base (Literal 4)
+  let expectedVal = Nat (4 + 3)
+  TestLabel
+    "should return constant + the number of arguments when catch evaluates to a constant"
+    $ assertEval term emptyEnv expectedVal
+
+catchOnError :: Test
+catchOnError = do
+  let term = Catch $ Lambda "x" Base $ Lambda "y" Base $ Lambda "z" Base (Error Error2)
+  let expectedVal = Err Error2
+  TestLabel
+    "should return constant + the number of arguments when catch evaluates to a constant"
+    $ assertEval term emptyEnv expectedVal
+
+catchOnSimpleAbstraction :: Test
+catchOnSimpleAbstraction = do
   let term = Catch $ Lambda "f" Base $ Variable "f"
-  let env = Map.empty
-  let expectedVal = Nat 1
+  let expectedVal = Nat 0
   TestLabel
     "should return 1 with 1 argument term"
-    $ assertEval term env expectedVal
+    $ assertEval term emptyEnv expectedVal
 
-evalCatch :: Test
-evalCatch = do
-  let term =
-        Catch
-          ( Lambda
-              "f"
-              (Base :-> Base)
-              ( Lambda
-                  "x"
-                  Base
-                  ( Lambda
-                      "y"
-                      Base
-                      ( If0
-                          (Literal 1) -- (Variable "x")
-                          (Variable "y")
-                          ( Succ
-                              (Apply (Variable "f") (Pred (Literal 1 {-(Variable "x")-})))
-                          )
-                      )
-                  )
-              )
-          )
-  -- let term = Catch $ SPCFConsts.addLeft (Error Error1) (Error Error2)
-  let env = Map.empty
-  let expectedVal = Nat 3
+catchApplicationRhsFirst :: Test
+catchApplicationRhsFirst = do
+  let term = Catch $ Lambda "x" (Base :-> Base) $ Lambda "y" Base $ (Apply (Variable "x") (Variable "y"))
+  let expectedVal = Nat 1
   TestLabel
-    "should return index of argument which causes the error"
-    $ assertEval term env expectedVal
+    "should consider RHS first when catching an application"
+    $ assertEval term emptyEnv expectedVal
 
-evalCatchFixedPoint :: Test
-evalCatchFixedPoint = do
+catchApplicationLhsSecond :: Test
+catchApplicationLhsSecond = do
+  let term = Catch $ Lambda "x" (Base :-> Base) $ Lambda "y" Base $ (Apply (Variable "x") (Literal 0))
+  let expectedVal = Nat 0
+  TestLabel
+    "should consider LHS second when catching an applicaiton of a constant"
+    $ assertEval term emptyEnv expectedVal
+
+catchIsErrorSensitive :: Test
+catchIsErrorSensitive = do
   let term = Catch $ SPCFConsts.addLeft (Error Error1) (Error Error2)
-  let env = Map.empty
+  let expectedVal = Err Error2
+  TestLabel
+    "should return error as soon as it is encountered when catching term"
+    $ assertEval term emptyEnv expectedVal
+
+-- This doesn't type check because programs in the SPCF are closed and must
+--   return o. If this wasn't the case, x would have to have type (o -> o) -> o.
+-- let term = Catch $ SPCFConsts.addLeft (Error Error1) (Error Error2)
+-- catchApplication :: Test
+-- catchApplication = do
+--   let identity = Lambda "z" Base (Variable "z")
+--   let term = Catch $ Apply (Variable "x") identity
+--   let expectedVal = Nat 3
+--   TestLabel
+--     "should consider RHS first when catching an application"
+--     $ assertEval term emptyEnv expectedVal
+
+catchOnIf0Condition :: Test
+catchOnIf0Condition = do
+  let term = Catch $ Lambda "x" Base $ If0 (Variable "x") (Error Error1) (Error Error2)
+  let expectedVal = Nat 0
+  TestLabel
+    "should consider condition first when catching If0"
+    $ assertEval term emptyEnv expectedVal
+
+catchOnIf0True :: Test
+catchOnIf0True = do
+  let term = Catch $ Lambda "x" Base (If0 (Literal 0) (Variable "x") (Error Error2))
+  let expectedVal = Nat 0
+  TestLabel
+    "should consider true path first when catching If0 and the condition is a constant 0"
+    $ assertEval term emptyEnv expectedVal
+
+catchOnIf0False :: Test
+catchOnIf0False = do
+  let term = Catch $ Lambda "x" Base $ If0 (Literal 1) (Literal 1) (Variable "x")
+  let expectedVal = Nat 0
+  TestLabel
+    "should consider false path when catching If0, the condition, and true path are constant"
+    $ assertEval term emptyEnv expectedVal
+
+catchFixedPoint :: Test
+catchFixedPoint = do
+  let term = Catch $ YComb SPCFConsts.addRightTerm
   let expectedVal = Nat 2
   TestLabel
-    "should return index of argument which causes the error"
-    $ assertEval term env expectedVal
+    "should return index of argument which is evaluated first"
+    $ assertEval term emptyEnv expectedVal
+
+catchHigherOrderFunction :: Test
+catchHigherOrderFunction = do
+  let catchTerm = Lambda "f" (Base :-> Base) $ Catch (Variable "f")
+  let f = (Lambda "x" Base (Error Error1))
+  let term = Apply catchTerm f
+  let expectedVal = Nat 0
+  TestLabel
+    "should treat higher order functions as first class parameters in catch"
+    $ assertEval term emptyEnv expectedVal
 
 assertEval :: Term -> Environment -> Value -> Test
 assertEval term env expectedVal =
