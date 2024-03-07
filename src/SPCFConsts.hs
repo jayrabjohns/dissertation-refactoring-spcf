@@ -1,4 +1,4 @@
-module SPCFConsts (apply, omega, (<+), (+>), addLeft, addRight) where
+module SPCFConsts (apply, omega, (<+), (+>), addLeft, addRight, addLeftTerm, addRightTerm) where
 
 import SPCF
 
