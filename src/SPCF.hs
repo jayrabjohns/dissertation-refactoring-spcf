@@ -85,71 +85,6 @@ instance Show Value where
   show (Err err) = show err
   show (Closure env term) = "Closure " ++ show env ++ show term
 
-alphabetLazyList :: [String]
-alphabetLazyList = [[char] | char <- ['a' .. 'z']]
-
-alphaNumsLazyList :: [String]
-alphaNumsLazyList = [char : show i | i <- [1 :: Int ..], char <- ['a' .. 'z']]
-
-labels :: [Label]
-labels = alphabetLazyList ++ alphaNumsLazyList
-
-fresh :: [Label] -> Label
-fresh usedLabels = case (find (`notElem` usedLabels) labels) of
-  Just label -> label
-  Nothing -> error "Error, somehow all variable names have been used. This shouldn't be possible."
-
-used :: Term -> [Label]
-used (Literal _) = []
-used (Variable label) = [label]
-used (Lambda label _ term) = label : used term
-used (Apply lhs rhs) = used lhs ++ used rhs
-used (Succ body) = used body
-used (Pred body) = used body
-used (If0 cond iftrue iffalse) = used cond ++ used iftrue ++ used iffalse
-used (YComb body) = used body
-used (Error _) = []
-used (Catch term) = used term
-
-rename :: Label -> Label -> Term -> Term
-rename _ _ literal@(Literal _) = literal
-rename old new var@(Variable label)
-  | label == old = Variable new
-  | otherwise = var
-rename old new abst@(Lambda label t body)
-  | label == old = abst
-  | otherwise = Lambda label t (rename old new body)
-rename old new (Apply lhs rhs) = Apply (rename old new lhs) (rename old new rhs)
-rename old new (Succ body) = Succ (rename old new body)
-rename old new (Pred body) = Pred (rename old new body)
-rename old new (If0 cond iftrue iffalse) =
-  let r = rename old new
-   in If0 (r cond) (r iftrue) (r iffalse)
-rename old new (YComb body) = YComb (rename old new body)
-rename _ _ err@(Error _) = err
-rename old new (Catch body) = Catch (rename old new body)
-
-substitute :: Label -> Term -> Term -> Term
-substitute _ _ literal@Literal {} = literal
-substitute old new var@(Variable label)
-  | label == old = new
-  | otherwise = var
-substitute old new abst@(Lambda label t body)
-  | label == old = abst
-  | otherwise =
-      let freshVar = fresh (used new ++ used body ++ [old, label])
-       in Lambda freshVar t (substitute old new (rename label freshVar body))
-substitute old new (Apply lhs rhs) =
-  Apply (substitute old new lhs) (substitute old new rhs)
-substitute old new (Succ body) = Succ (substitute old new body)
-substitute old new (Pred body) = Pred (substitute old new body)
-substitute old new (If0 cond iftrue iffalse) =
-  let sub = substitute old new
-   in (If0 (sub cond) (sub iftrue) (sub iffalse))
-substitute old new (YComb body) = YComb (substitute old new body)
-substitute _ _ err@(Error _) = err
-substitute old new (Catch body) = Catch (substitute old new body)
-
 interpret :: Term -> Either String Value
 interpret term = eval (Closure Map.empty term)
 
@@ -297,3 +232,68 @@ catch (If0 predicate tt ff) args =
     otherResult -> otherResult
 catch (YComb body) args = catch body args
 catch (Catch body) args = catch body args
+
+substitute :: Label -> Term -> Term -> Term
+substitute _ _ literal@Literal {} = literal
+substitute old new var@(Variable label)
+  | label == old = new
+  | otherwise = var
+substitute old new abst@(Lambda label t body)
+  | label == old = abst
+  | otherwise =
+      let freshVar = fresh (used new ++ used body ++ [old, label])
+       in Lambda freshVar t (substitute old new (rename label freshVar body))
+substitute old new (Apply lhs rhs) =
+  Apply (substitute old new lhs) (substitute old new rhs)
+substitute old new (Succ body) = Succ (substitute old new body)
+substitute old new (Pred body) = Pred (substitute old new body)
+substitute old new (If0 cond iftrue iffalse) =
+  let sub = substitute old new
+   in (If0 (sub cond) (sub iftrue) (sub iffalse))
+substitute old new (YComb body) = YComb (substitute old new body)
+substitute _ _ err@(Error _) = err
+substitute old new (Catch body) = Catch (substitute old new body)
+
+rename :: Label -> Label -> Term -> Term
+rename _ _ literal@(Literal _) = literal
+rename old new var@(Variable label)
+  | label == old = Variable new
+  | otherwise = var
+rename old new abst@(Lambda label t body)
+  | label == old = abst
+  | otherwise = Lambda label t (rename old new body)
+rename old new (Apply lhs rhs) = Apply (rename old new lhs) (rename old new rhs)
+rename old new (Succ body) = Succ (rename old new body)
+rename old new (Pred body) = Pred (rename old new body)
+rename old new (If0 cond iftrue iffalse) =
+  let r = rename old new
+   in If0 (r cond) (r iftrue) (r iffalse)
+rename old new (YComb body) = YComb (rename old new body)
+rename _ _ err@(Error _) = err
+rename old new (Catch body) = Catch (rename old new body)
+
+fresh :: [Label] -> Label
+fresh usedLabels = case (find (`notElem` usedLabels) labels) of
+  Just label -> label
+  Nothing -> error "Error, somehow all variable names have been used. This shouldn't be possible."
+
+used :: Term -> [Label]
+used (Literal _) = []
+used (Variable label) = [label]
+used (Lambda label _ term) = label : used term
+used (Apply lhs rhs) = used lhs ++ used rhs
+used (Succ body) = used body
+used (Pred body) = used body
+used (If0 cond iftrue iffalse) = used cond ++ used iftrue ++ used iffalse
+used (YComb body) = used body
+used (Error _) = []
+used (Catch term) = used term
+
+labels :: [Label]
+labels = alphabetLazyList ++ alphaNumsLazyList
+
+alphabetLazyList :: [String]
+alphabetLazyList = [[char] | char <- ['a' .. 'z']]
+
+alphaNumsLazyList :: [String]
+alphaNumsLazyList = [char : show i | i <- [1 :: Int ..], char <- ['a' .. 'z']]
