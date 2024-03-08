@@ -1,9 +1,6 @@
 module Main (main) where
 
--- import qualified MonadicExampleSpec
--- import qualified SPCFHelpersSpec
 import qualified SPCFSpec
--- import qualified SimpleExampleSpec
 import qualified System.Exit as Exit
 import Test.HUnit
 
@@ -17,8 +14,6 @@ main = do
 tests :: Test
 tests =
   TestList
-    [ -- SimpleExampleSpec.tests,
-      --   MonadicExampleSpec.tests,
-      -- SPCFHelpersSpec.tests,
+    [ -- SPCFHelpersSpec.tests,
       SPCFSpec.tests
     ]
