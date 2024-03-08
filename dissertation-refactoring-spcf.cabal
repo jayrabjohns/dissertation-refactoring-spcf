@@ -85,9 +85,7 @@ library
         SPCF,
         SPCFConsts,
         BoundedSPCF, 
-        STLC,
-        SimpleExample,
-        MonadicExample
+        STLC
 
     build-depends: 
         base,
@@ -105,8 +103,6 @@ test-suite dissertation-refactoring-spcf-test
     hs-source-dirs: test
     main-is: Main.hs
     other-modules: 
-        -- SimpleExampleSpec,
-        -- MonadicExampleSpec,
         -- PCFSpec,
         SPCFSpec
         -- SPCFHelpersSpec
