@@ -1,9 +1,12 @@
-module BoundedSPCF (Term (..), Error (..), Type (..), Value (..), Label, Environment, eval, interpret, substitute) where
+module BoundedSPCF (Term (..), Error (..), Type (..), Value (..), Label, Environment, eval, interpret, interpretIO, substitute, runEval, runEvalIO) where
 
+import Control.Monad.Except
+import Control.Monad.Identity
+import Control.Monad.Reader
+import Control.Monad.Writer
 import Data.List
 import qualified Data.Map as Map
 import qualified Data.Map.Internal.Debug as Map.Debug
-import Debug.Trace
 
 type Label = String
 
@@ -77,36 +80,52 @@ instance Show Value where
   show (Err err) = show err
   show (Closure env term) = "Closure " ++ show env ++ show term
 
+type Eval a = (ReaderT Environment (ExceptT String (WriterT [String] Identity))) a
+
+runEval :: Eval a -> Environment -> (Either String a, [String])
+runEval evl env = runIdentity . runWriterT . runExceptT $ runReaderT evl env
+
+runEvalIO :: Eval a -> Environment -> IO a
+runEvalIO evaluation env = do
+  let (result, logs) = runEval evaluation env
+  _ <- traverse putStrLn logs
+  either fail return result
+
 interpret :: Term -> Either String Value
-interpret term = eval (Closure Map.empty term)
+interpret term = fst $ runEval (eval term) Map.empty
+
+interpretIO :: Term -> IO Value
+interpretIO term = runEvalIO (eval term) Map.empty
 
 -- Evaluation is commonly denoted by ⇓ and is sort of a decomposition of a
 --   closure (a redex and an evaluation context) into a value.
 --   If the term is of ground type then the result will be either a numeral,
 --   a variable, or
 --   (either a nautral number or a closure)
-eval :: Value -> Either String Value
-eval (Nat i) = Right (Nat i)
-eval err@(Err _) = Right err
-eval (Closure _ (Literal i)) = Right (Nat i)
-eval (Closure env (Variable label)) =
-  trace
-    ( "\nEvaluating "
+eval :: Term -> Eval Value
+eval (Error err) = return $ Err err
+eval (Literal i) = return $ Nat i
+eval (Variable label) = do
+  env <- ask
+  tell
+    [ "\nEvaluating "
         ++ label
         ++ " with environement:\n"
         ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False env
-    )
-    ( case Map.lookup label env of
-        Just val -> Right val
-        Nothing -> Left ("Undefined variable " ++ label)
-    )
-eval l@(Closure _ Lambda {}) = return l
-eval (Closure env (Apply lterm rterm)) = do
+    ]
+  case Map.lookup label env of
+    Just val -> return val
+    Nothing -> throwError $ "Undefined variable " ++ label
+eval lambda@Lambda {} = do
+  env <- ask
+  return $ Closure env lambda
+eval (Apply lterm rterm) = do
   -- Call by value because evaluating argument before application
-  arg <- eval (Closure env rterm)
-  lval <- eval (Closure env lterm)
+  arg <- eval rterm
+  lval <- eval lterm
   case lval of
     (Closure env' (Lambda label _ body)) -> do
+      env <- ask
       -- Taking the union of the newly constructed environment and the
       --   evironment stored with the closure, this has the effect of closures
       --   inheriting the environemnt in which they are applied, rather than
@@ -114,18 +133,17 @@ eval (Closure env (Apply lterm rterm)) = do
       --   languages do things. E.g. when passing in an anonymous function,
       --   you would expect it to capture the environemnt where it is called.
       let newEnv = Map.unions [(Map.insert label arg env'), env]
-      let result = eval (Closure newEnv body)
-      trace
-        ( "\nApplying argument "
+      tell
+        [ "\nApplying argument "
             ++ show rterm
             ++ " to body "
             ++ show lterm
             ++ " with environment\n"
             ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False env'
-        )
-        result
+        ]
+      local (const newEnv) (eval body)
     _ ->
-      Left $
+      throwError $
         "Error while evaluating application - "
           ++ "lhs of an application should always be an abstraction. "
           ++ "Specifically, "
@@ -133,63 +151,63 @@ eval (Closure env (Apply lterm rterm)) = do
           ++ " cannot be applied to "
           ++ show lterm
           ++ ". \nEnv:\n"
-          ++ Map.Debug.showTreeWith (\k x -> show (k, x)) True False env
-eval (Closure env (Succ term)) = do
-  val <-
-    ( trace
-        ( "\nFinding successor of "
-            ++ show term
-            ++ " with environemnt:\n"
-            ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False env
-        )
-        (eval (Closure env term))
-      )
+-- ++ Map.Debug.showTreeWith (\k x -> show (k, x)) True False env
+eval (Succ term) = do
+  tell
+    [ "\nFinding successor of "
+        ++ show term
+        ++ " with environemnt:\n"
+        -- ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False env
+    ]
+  val <- eval term
   case val of
-    Nat i -> Right (Nat (i + 1))
-    _ -> Left $ "Cannot apply successor to non natural number" ++ show term
-eval (Closure env (Pred term)) = do
-  val <-
-    ( trace
-        ( "\nFinding predecessor of "
-            ++ show term
-            ++ " with environemnt:\n"
-            ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False env
-        )
-        (eval (Closure env term))
-      )
+    Nat i -> return $ Nat (i + 1)
+    _ -> throwError $ "Cannot apply successor to non natural number" ++ show term
+eval (Pred term) = do
+  tell
+    [ "\nFinding predecessor of "
+        ++ show term
+        ++ " with environemnt:\n"
+        -- ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False env
+    ]
+  val <- eval term
   case val of
-    Nat 0 -> Right (Nat 0)
-    Nat i -> Right (Nat (i - 1))
-    _ -> Left $ "Cannot apply predeccessor to non natural number" ++ show term
-eval (Closure env (If0 cond iftrue iffalse)) = do
-  val <-
-    ( trace
-        ("if " ++ show cond ++ "\n then " ++ show iftrue ++ "\n else " ++ show iffalse)
-        (eval (Closure env cond))
-      )
+    Nat 0 -> return $ Nat 0
+    Nat i -> return $ Nat (i - 1)
+    _ -> throwError $ "Cannot apply predeccessor to non natural number " ++ show term
+eval (If0 cond iftrue iffalse) = do
+  tell
+    [ "if "
+        ++ show cond
+        ++ "\n then "
+        ++ show iftrue
+        ++ "\n else "
+        ++ show iffalse
+    ]
+  val <- eval cond
   case val of
-    Nat 0 -> eval (Closure env iftrue)
-    Nat _ -> eval (Closure env iffalse)
-    err@(Err _) -> Right err
+    Nat 0 -> eval iftrue
+    Nat _ -> eval iffalse
+    err@(Err _) -> return err
     _ ->
-      Left $
+      throwError $
         "Cannot check if non numerical value is 0. "
           ++ "Specifically, "
           ++ show cond
           ++ " doesn't evaluate to a number."
-eval (Closure _ (Error err)) = Right (Err err)
 -- Following Laird's definition of catch which has ground type rather than
 --   Cartwreight & Fallensien's family of t -> o typed operators.
 -- Need a way to track the index of each argument. Perhaps store a special variable in the context?
 -- The alternative would be either re-writing the eval function inside of the case for catch,
 -- or passing in a special parameter counting the index / having a custom monad tracking hte same state
-eval (Closure env (Catch body)) =
+eval (Catch body) = do
+  env <- ask
   let usedLabels = Map.keys env
-   in case catch body usedLabels of
-        CaughtError err -> return $ Err err
-        Constant i n -> return $ Nat (i + n)
-        ArgumentIndex i -> return $ Nat i
-        Diverge msg -> Left msg
+  case catch body usedLabels of
+    CaughtError err -> return $ Err err
+    Constant i n -> return $ Nat (i + n)
+    ArgumentIndex i -> return $ Nat i
+    Diverge msg -> throwError msg
 
 data CatchResult
   = Constant Int Int
@@ -202,7 +220,12 @@ catch (Literal i) args = Constant i (length args)
 catch (Error err) _ = CaughtError err
 catch (Variable label) args = case elemIndex label args of
   Just i -> ArgumentIndex i
-  Nothing -> Diverge $ "Error, variable " ++ label ++ " is unbound and so cannot be caught. This program shouldn't have correctly typed checked in the first place."
+  Nothing ->
+    Diverge $
+      "Error, variable "
+        ++ label
+        ++ " is unbound and so cannot be caught. This program shouldn't "
+        ++ "have correctly typed checked in the first place."
 catch (Lambda label _ body) args = catch body (args ++ [label]) -- TODO: ensure variable shadowing works as expected
 catch (Apply lhs rhs) args =
   case catch rhs args of
