@@ -2,6 +2,7 @@ module SPCF (Term (..), Error (..), Type (..), Value (..), Label, Environment, e
 
 import Control.Monad.Except
 import Control.Monad.Identity
+import Control.Monad.Reader
 import Control.Monad.Writer
 import Data.List
 import qualified Data.Map as Map
@@ -89,14 +90,14 @@ instance Show Value where
 
 -- ReaderT Environment
 -- type Eval a = (WriterT [String] (ExceptT String Identity)) a
-type Eval a = (ExceptT String (WriterT [String] Identity)) a
+type Eval a = (ReaderT Environment (ExceptT String (WriterT [String] Identity))) a
 
-runEval :: Eval a -> (Either String a, [String])
-runEval = runIdentity . runWriterT . runExceptT
+runEval :: Eval a -> Environment -> (Either String a, [String])
+runEval evl env = runIdentity . runWriterT . runExceptT $ runReaderT evl env
 
-runEvalIO :: Eval a -> IO a
-runEvalIO evaluation = do
-  let (result, logs) = runEval evaluation
+runEvalIO :: Eval a -> Environment -> IO a
+runEvalIO evaluation env = do
+  let (result, logs) = runEval evaluation env
   _ <- traverse putStrLn logs
   either fail return result
 
@@ -104,21 +105,21 @@ runEvalIO evaluation = do
 -- runEval ev = runIdentity (runWriterT (runErrorT))
 
 interpret :: Term -> Either String Value
-interpret term = fst $ runEval (eval (Closure Map.empty term))
+interpret term = fst $ runEval (eval term) Map.empty
 
 interpretIO :: Term -> IO Value
-interpretIO term = runEvalIO (eval (Closure Map.empty term))
+interpretIO term = runEvalIO (eval term) Map.empty
 
 -- Evaluation is commonly denoted by ⇓ and is sort of a decomposition of a
 --   closure (a redex and an evaluation context) into a value.
 --   If the term is of ground type then the result will be either a numeral,
 --   a variable, or
 --   (either a nautral number or a closure)
-eval :: Value -> Eval Value
-eval (Nat i) = return $ Nat i
-eval err@(Err _) = return err
-eval (Closure _ (Literal i)) = return $ Nat i
-eval (Closure env (Variable label)) = do
+eval :: Term -> Eval Value
+eval (Error err) = return $ Err err
+eval (Literal i) = return $ Nat i
+eval (Variable label) = do
+  env <- ask
   tell
     [ "\nEvaluating "
         ++ label
@@ -128,13 +129,16 @@ eval (Closure env (Variable label)) = do
   case Map.lookup label env of
     Just val -> return val
     Nothing -> throwError $ "Undefined variable " ++ label
-eval l@(Closure _ Lambda {}) = return l
-eval (Closure env (Apply lterm rterm)) = do
+eval lambda@Lambda {} = do
+  env <- ask
+  return $ Closure env lambda
+eval (Apply lterm rterm) = do
   -- Call by value because evaluating argument before application
-  arg <- eval (Closure env rterm)
-  lval <- eval (Closure env lterm)
+  arg <- eval rterm
+  lval <- eval lterm
   case lval of
     (Closure env' (Lambda label _ body)) -> do
+      env <- ask
       -- Taking the union of the newly constructed environment and the
       --   evironment stored with the closure, this has the effect of closures
       --   inheriting the environemnt in which they are applied, rather than
@@ -150,7 +154,7 @@ eval (Closure env (Apply lterm rterm)) = do
             ++ " with environment\n"
             ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False env'
         ]
-      eval (Closure newEnv body)
+      local (const newEnv) (eval body)
     _ ->
       throwError $
         "Error while evaluating application - "
@@ -160,31 +164,31 @@ eval (Closure env (Apply lterm rterm)) = do
           ++ " cannot be applied to "
           ++ show lterm
           ++ ". \nEnv:\n"
-          ++ Map.Debug.showTreeWith (\k x -> show (k, x)) True False env
-eval (Closure env (Succ term)) = do
+-- ++ Map.Debug.showTreeWith (\k x -> show (k, x)) True False env
+eval (Succ term) = do
   tell
     [ "\nFinding successor of "
         ++ show term
         ++ " with environemnt:\n"
-        ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False env
+        -- ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False env
     ]
-  val <- eval (Closure env term)
+  val <- eval term
   case val of
     Nat i -> return $ Nat (i + 1)
     _ -> throwError $ "Cannot apply successor to non natural number" ++ show term
-eval (Closure env (Pred term)) = do
+eval (Pred term) = do
   tell
     [ "\nFinding predecessor of "
         ++ show term
         ++ " with environemnt:\n"
-        ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False env
+        -- ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False env
     ]
-  val <- eval (Closure env term)
+  val <- eval term
   case val of
     Nat 0 -> return $ Nat 0
     Nat i -> return $ Nat (i - 1)
     _ -> throwError $ "Cannot apply predeccessor to non natural number " ++ show term
-eval (Closure env (If0 cond iftrue iffalse)) = do
+eval (If0 cond iftrue iffalse) = do
   tell
     [ "if "
         ++ show cond
@@ -193,10 +197,10 @@ eval (Closure env (If0 cond iftrue iffalse)) = do
         ++ "\n else "
         ++ show iffalse
     ]
-  val <- eval (Closure env cond)
+  val <- eval cond
   case val of
-    Nat 0 -> eval (Closure env iftrue)
-    Nat _ -> eval (Closure env iffalse)
+    Nat 0 -> eval iftrue
+    Nat _ -> eval iffalse
     err@(Err _) -> return err
     _ ->
       throwError $
@@ -204,26 +208,26 @@ eval (Closure env (If0 cond iftrue iffalse)) = do
           ++ "Specifically, "
           ++ show cond
           ++ " doesn't evaluate to a number."
-eval (Closure env (YComb term)) = do
-  val <- eval (Closure env term)
+eval (YComb term) = do
+  val <- eval term
   case val of
     Closure env' abst@(Lambda label _ body) -> do
       let selfApplication = (substitute label (YComb abst) body)
-      eval (Closure env' selfApplication)
+      local (const env') (eval selfApplication)
     _ -> throwError "Error, it is only possible to take a fixed point of a lambda abstraction"
-eval (Closure _ (Error err)) = return $ Err err
 -- Following Laird's definition of catch which has ground type rather than
 --   Cartwreight & Fallensien's family of t -> o typed operators.
 -- Need a way to track the index of each argument. Perhaps store a special variable in the context?
 -- The alternative would be either re-writing the eval function inside of the case for catch,
 -- or passing in a special parameter counting the index / having a custom monad tracking hte same state
-eval (Closure env (Catch body)) =
+eval (Catch body) = do
+  env <- ask
   let usedLabels = Map.keys env
-   in case catch body usedLabels of
-        CaughtError err -> return $ Err err
-        Constant i n -> return $ Nat (i + n)
-        ArgumentIndex i -> return $ Nat i
-        Diverge msg -> throwError msg
+  case catch body usedLabels of
+    CaughtError err -> return $ Err err
+    Constant i n -> return $ Nat (i + n)
+    ArgumentIndex i -> return $ Nat i
+    Diverge msg -> throwError msg
 
 data CatchResult
   = Constant Int Int

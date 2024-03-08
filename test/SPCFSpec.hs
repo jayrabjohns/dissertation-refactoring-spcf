@@ -380,7 +380,7 @@ assertEval :: Term -> Environment -> Value -> Test
 assertEval term env expectedVal =
   TestCase
     ( do
-        result <- runEvalIO $ eval (Closure env term)
+        result <- runEvalIO (eval term) env
         assertEqual
           ( "Term doesn't evaluate to the expected result. Term: "
               ++ show term
