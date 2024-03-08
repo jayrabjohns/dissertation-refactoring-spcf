@@ -10,10 +10,6 @@ import qualified Data.Map.Internal.Debug as Map.Debug
 
 type Label = String
 
--- type ArgumentIndex = Int
-
--- type Metadata = (Type, ArgumentIndex)
-
 data Term
   = Literal Int
   | Variable Label
@@ -88,8 +84,6 @@ instance Show Value where
   show (Err err) = show err
   show (Closure env term) = "Closure " ++ show env ++ show term
 
--- ReaderT Environment
--- type Eval a = (WriterT [String] (ExceptT String Identity)) a
 type Eval a = (ReaderT Environment (ExceptT String (WriterT [String] Identity))) a
 
 runEval :: Eval a -> Environment -> (Either String a, [String])
@@ -100,9 +94,6 @@ runEvalIO evaluation env = do
   let (result, logs) = runEval evaluation env
   _ <- traverse putStrLn logs
   either fail return result
-
--- runEval :: Eval a -> ((Either String a, [String]), Integer)
--- runEval ev = runIdentity (runWriterT (runErrorT))
 
 interpret :: Term -> Either String Value
 interpret term = fst $ runEval (eval term) Map.empty
