@@ -14,13 +14,15 @@ omega = YComb $ Lambda "x" Base (Variable "x")
 
 -- Addition operator.
 --   Recurses on the left argument, also known as left addition.
-(<+) :: Term -> Term -> Either String Value
-(<+) lhs rhs = interpret (addLeft lhs rhs)
+--   This is a partial function and will error on unsuccessful evaluations.
+(<+) :: Term -> Term -> Value
+(<+) lhs rhs = either error id val where val = interpret (addLeft lhs rhs)
 
 -- Addition operator.
 --   Recurses on the right argument, also known as right addition.
-(+>) :: Term -> Term -> Either String Value
-(+>) lhs rhs = interpret (addRight lhs rhs)
+--   This is a partial function and will error on unsuccessful evaluations.
+(+>) :: Term -> Term -> Value
+(+>) lhs rhs = either error id val where val = interpret (addRight lhs rhs)
 
 -- Add two terms using the left addition combinator
 addLeft :: Term -> Term -> Term

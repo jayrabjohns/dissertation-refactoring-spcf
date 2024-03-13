@@ -84,7 +84,8 @@ library
         PCF,
         SPCF,
         SPCFConsts,
-        BoundedSPCF, 
+        BoundedSPCF,
+        BoundedASPCF,
         STLC
 
     build-depends: 
@@ -104,7 +105,8 @@ test-suite dissertation-refactoring-spcf-test
     main-is: Main.hs
     other-modules: 
         -- PCFSpec,
-        SPCFSpec
+        SPCFSpec,
+        BoundedSPCFSpec
         -- SPCFHelpersSpec
     build-depends:
         base,
