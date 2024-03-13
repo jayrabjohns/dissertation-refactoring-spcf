@@ -36,9 +36,6 @@ tests =
       catchHigherOrderFunction
     ]
 
-emptyEnv :: Environment
-emptyEnv = Map.empty
-
 evalVariable :: Test
 evalVariable = do
   let term = (Variable "x")

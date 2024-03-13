@@ -1,4 +1,4 @@
-module SPCF (Term (..), Error (..), Type (..), Value (..), Label, Environment, eval, interpret, interpretIO, substitute, runEval, runEvalIO) where
+module SPCF (Term (..), Error (..), Type (..), Value (..), Label, Environment, emptyEnv, eval, interpret, interpretIO, substitute, runEval, runEvalIO) where
 
 import Control.Monad.Except
 import Control.Monad.Identity
@@ -71,6 +71,9 @@ instance Show Type where
 --   environment E maps an identifier x is normally denoted by E[x].
 type Environment = Map.Map Label Value
 
+emptyEnv :: Environment
+emptyEnv = Map.empty
+
 -- The result of evaluation of a closure.
 --   Either a natural number or another closure.
 data Value
@@ -96,10 +99,10 @@ runEvalIO evaluation env = do
   either fail return result
 
 interpret :: Term -> Either String Value
-interpret term = fst $ runEval (eval term) Map.empty
+interpret term = fst $ runEval (eval term) emptyEnv
 
 interpretIO :: Term -> IO Value
-interpretIO term = runEvalIO (eval term) Map.empty
+interpretIO term = runEvalIO (eval term) emptyEnv
 
 -- Evaluation is commonly denoted by ⇓ and is sort of a decomposition of a
 --   closure (a redex and an evaluation context) into a value.
