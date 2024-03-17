@@ -106,7 +106,8 @@ test-suite dissertation-refactoring-spcf-test
     other-modules: 
         -- PCFSpec,
         SPCFSpec,
-        BoundedSPCFSpec
+        BoundedSPCFSpec,
+        BoundedASPCFFragmentSpec
         -- SPCFHelpersSpec
     build-depends:
         base,

@@ -1,5 +1,6 @@
 module Main (main) where
 
+import qualified BoundedASPCFFragmentSpec
 import qualified BoundedSPCFSpec
 import qualified SPCFSpec
 import qualified System.Exit as Exit
@@ -17,5 +18,6 @@ tests =
   TestList
     [ -- SPCFHelpersSpec.tests,
       -- SPCFSpec.tests,
-      BoundedSPCFSpec.tests
+      -- BoundedSPCFSpec.tests
+      BoundedASPCFFragmentSpec.tests
     ]

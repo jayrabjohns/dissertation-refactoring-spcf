@@ -1,3 +1,10 @@
+It may be possible to upgrade our AST to be a type class, allowing us to plug in different bounded base types, e.g bools and nats.
+One thing to figure out is how to remake the parts that depend on the underlying data being integers. E.g. returning from catch, and the index passed into Case.
+
+
+
+
+
 different evaluation strateies
 
 analysis of runtime overheads and any potential decisions of stack vs heap allocation

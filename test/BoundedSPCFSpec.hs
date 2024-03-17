@@ -16,7 +16,7 @@ evalCase = do
   let p = Product [Numeral 1, Numeral 2, Numeral 3]
   let i = Numeral 3
   let term = Apply (Apply f p) i
-  let expectedResult = Nat 3
+  let expectedResult = Numeral 3
   TestLabel
     "should evaluate to nth term of p for (Case n p)"
     $ assertEval term emptyEnv expectedResult
@@ -27,13 +27,12 @@ evalCase0 = do
   let p = Product [Numeral 1, Numeral 2, Numeral 3]
   let i = Numeral 0
   let term = Apply (Apply f p) i
-  let expectedResult = Closure emptyEnv emptyProduct
   TestLabel
     "should evaluate to the emtpy product for (Case 0 p)"
-    $ assertEval term emptyEnv expectedResult
+    $ assertEval term emptyEnv emptyProduct
 
-assertEval :: Term -> Environment -> Value -> Test
-assertEval term env expectedVal =
+assertEval :: Term -> Environment -> Term -> Test
+assertEval term env expectedTerm =
   TestCase
     ( do
         result <- runEvalIO (eval term) env
@@ -43,6 +42,6 @@ assertEval term env expectedVal =
               ++ ". Environment: "
               ++ show env
           )
-          expectedVal
+          expectedTerm
           result
     )

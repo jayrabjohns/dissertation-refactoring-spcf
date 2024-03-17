@@ -1,0 +1,36 @@
+\"y". 
+    Case 
+    (Catch (\"p". \"i". Case i p)) 
+    (
+        (Case 
+            (I)
+            (
+                ((I) ((I)x(Case 1 y)))
+                x(((\"e". \"a". Case a (0x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x0x(Case 1 e)))) ((Case 1 y)))
+                x(((\"e". \"a". Case a (1x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x1x(Case 1 e)))) ((I)))
+                x(((\"e". \"a". Case a (2x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x2x(Case 1 e)))) ((I)x(Case 1 y)))
+                x(((\"e". \"a". Case a (3x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x3x(Case 1 e)))) ((I)x(Case 1 y)))
+                x(((\"e". \"a". Case a (4x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x4x(Case 1 e)))) ((I)x(Case 1 y)))
+                x(((\"e". \"a". Case a (5x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x5x(Case 1 e)))) ((I)x(Case 1 y)))
+                x(((\"e". \"a". Case a (6x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x6x(Case 1 e)))) ((I)x(Case 1 y)))
+                x(((\"e". \"a". Case a (7x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x7x(Case 1 e)))) ((I)x(Case 1 y)))
+                x(((\"e". \"a". Case a (8x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x8x(Case 1 e)))) ((I)x(Case 1 y)))
+            )
+        )
+        x(
+            Case 
+            (Case 1 y) 
+            (
+                ((I) ((I)x(Case 1 y)))
+                x(((\"e". \"a". Case a (0x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x0x(Case 1 e)))) ((Case 1 y)))
+                x(((\"e". \"a". Case a (1x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x1x(Case 1 e)))) ((I)))
+                x(((\"e". \"a". Case a (2x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x2x(Case 1 e)))) ((I)x(Case 1 y)))
+                x(((\"e". \"a". Case a (3x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x3x(Case 1 e)))) ((I)x(Case 1 y)))
+                x(((\"e". \"a". Case a (4x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x4x(Case 1 e)))) ((I)x(Case 1 y)))
+                x(((\"e". \"a". Case a (5x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x5x(Case 1 e)))) ((I)x(Case 1 y)))
+                x(((\"e". \"a". Case a (6x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x6x(Case 1 e)))) ((I)x(Case 1 y)))
+                x(((\"e". \"a". Case a (7x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x7x(Case 1 e)))) ((I)x(Case 1 y)))
+                x(((\"e". \"a". Case a (8x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x8x(Case 1 e)))) ((I)x(Case 1 y)))
+            )
+        )
+    )
