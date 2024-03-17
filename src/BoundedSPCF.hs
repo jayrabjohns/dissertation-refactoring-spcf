@@ -1,4 +1,4 @@
-module BoundedSPCF (Term (..), Type (..), Value (..), Label, Environment, emptyEnv, emptyProduct, eval, interpret, interpretIO, substitute, runEval, runEvalIO) where
+module BoundedSPCF (Term (..), Type (..), Value (..), Label, Environment, Numeral, Product, emptyEnv, emptyProduct, projection, insertProduct, removeProduct, numerals, upperBound, eval, normalise, interpret, interpretIO, substitute, runEval, runEvalIO) where
 
 import Control.Monad.Except
 import Control.Monad.Identity
@@ -19,12 +19,27 @@ emptyProduct = Product []
 
 -- A family of n projections πᵢ: Tⁿ => T
 -- π₀(t) = I where I is the empty product
-projection :: Int -> Product -> Term
-projection 0 _ = emptyProduct
-projection i prod = Data.List.genericIndex prod (i - 1)
+projection :: Term -> Int -> Term
+projection _ 0 = emptyProduct
+projection (Product prod) i = Data.List.genericIndex prod (i - 1)
+projection var@(Variable _) i = Case (Numeral i) var
+projection _ _ = undefined
+
+insertProduct :: Product -> Term -> Int -> Product
+insertProduct prod toInsert index =
+  let (before, after) = Data.List.splitAt index prod
+   in before ++ [toInsert] ++ after
+
+removeProduct :: Product -> Int -> Product
+removeProduct prod index =
+  let (before, after) = Data.List.splitAt index prod
+   in (take (index - 1) before) ++ after
 
 upperBound :: Numeral
-upperBound = maxBound :: Numeral
+upperBound = 10
+
+numerals :: [Numeral]
+numerals = [0 :: Numeral .. upperBound]
 
 data Term
   = Numeral Numeral
@@ -51,10 +66,11 @@ instance Show Term where
       beautify _ (Numeral i) = show i
       beautify _ (Variable x) = x
       beautify i (Lambda var _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "\\" ++ show var ++ {-": " ++ show t ++ -} ". " ++ beautify 0 term
+      beautify i (Apply lhs@(Lambda label _ _) rhs) = if i == 2 then "(" ++ s ++ ")" else s where s = show lhs ++ "[" ++ show rhs ++ "/" ++ show label ++ "]" -- beautify 1 lhs ++ " " ++ beautify 2 rhs
       beautify i (Apply lhs rhs) = if i == 2 then "(" ++ s ++ ")" else s where s = beautify 1 lhs ++ " " ++ beautify 2 rhs
       beautify i (Product []) = if i /= 0 then "(" ++ s ++ ")" else s where s = "I"
       beautify i (Product prod) = if i /= 0 then "(" ++ s ++ ")" else s where s = (intercalate "x" (map (beautify 2) prod))
-      beautify i (Case numeral prod) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Case " ++ beautify 2 numeral ++ " " ++ beautify 2 prod
+      beautify i (Case numeral prod) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Case <" ++ beautify 0 numeral ++ ", " ++ beautify 0 prod ++ ">"
       beautify i (Catch term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Catch " ++ beautify 2 term
 
 data Type
@@ -76,10 +92,13 @@ instance Show Type where
 
 -- A mapping of identifiers (labels) to closures. The closure to which an
 --   environment E maps an identifier x is normally denoted by E[x].
-type Environment = Map.Map Label Value
+type Environment = Map.Map Label Term
 
 emptyEnv :: Environment
 emptyEnv = Map.empty
+
+showEnv :: Environment -> String
+showEnv env = Map.Debug.showTreeWith (\k v -> show (k, v)) True False env
 
 -- The result of evaluation of a closure.
 --   Either a natural number or another closure.
@@ -87,6 +106,14 @@ data Value
   = Nat Int
   | Closure Environment Term
   deriving (Eq)
+
+termToValue :: Eval Term -> Eval Value
+termToValue evaluation = do
+  result <- evaluation
+  env <- ask
+  return $ case result of
+    Numeral i -> Nat i
+    term -> Closure env term
 
 instance Show Value where
   show (Nat i) = show i
@@ -104,55 +131,50 @@ runEvalIO evaluation env = do
   either fail return result
 
 interpret :: Term -> Either String Value
-interpret term = fst $ runEval (eval term) emptyEnv
+interpret term = fst $ runEval (termToValue $ eval term) emptyEnv
 
 interpretIO :: Term -> IO Value
-interpretIO term = runEvalIO (eval term) emptyEnv
+interpretIO term = runEvalIO (termToValue $ eval term) emptyEnv
 
 -- Evaluation is commonly denoted by ⇓ and is sort of a decomposition of a
 --   closure (a redex and an evaluation context) into a value.
---   If the term is of ground type then the result will be either a numeral,
---   a variable, or
---   (either a nautral number or a closure)
-eval :: Term -> Eval Value
-eval (Numeral i) = return $ Nat i
+--   If the term is of ground type then the result will be a numeral, otherwise
+--   it will return a the beta reduced term along with the evaluation
+--   context up to that point.
+eval :: Term -> Eval Term
+eval (Numeral i) = return $ Numeral i
 eval (Variable label) = do
   env <- ask
   tell
-    [ "\nEvaluating "
-        ++ label
+    [ "Evaluate "
+        ++ show label
         ++ " with environement:\n"
-        ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False env
+        ++ showEnv env
     ]
   case Map.lookup label env of
     Just val -> return val
     Nothing -> throwError $ "Undefined variable " ++ label
-eval lambda@Lambda {} = do
-  env <- ask
-  return $ Closure env lambda
+eval (Lambda label typ body) = return $ Lambda label typ (normalise body)
 eval (Apply lterm rterm) = do
   -- Call by value because evaluating argument before application
   arg <- eval rterm
   lval <- eval lterm
   case lval of
-    (Closure env' (Lambda label _ body)) -> do
+    Lambda label _ body -> do
       env <- ask
-      -- Taking the union of the newly constructed environment and the
-      --   evironment stored with the closure, this has the effect of closures
-      --   inheriting the environemnt in which they are applied, rather than
-      --   where they are defined. This is more consistent with how pratical
-      --   languages do things. E.g. when passing in an anonymous function,
-      --   you would expect it to capture the environemnt where it is called.
-      let newEnv = Map.unions [(Map.insert label arg env'), env]
+      let newEnv = Map.insert label arg env
+      let newBody = substitute label arg body
       tell
-        [ "\nApplying argument "
-            ++ show rterm
-            ++ " to body "
-            ++ show lterm
-            ++ " with environment\n"
-            ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False env'
+        [ "Apply ("
+            ++ show lval
+            ++ ") ["
+            ++ show arg
+            ++ "/"
+            ++ show label
+            ++ "] with new environment\n"
+            ++ showEnv env
         ]
-      local (const newEnv) (eval body)
+      local (const newEnv) (eval newBody)
     _ ->
       throwError $
         "Error while evaluating application - "
@@ -161,14 +183,23 @@ eval (Apply lterm rterm) = do
           ++ show rterm
           ++ " cannot be applied to "
           ++ show lterm
-eval prod@(Product terms) = do
-  env <- ask
-  return $ Closure env prod
+eval (Product terms) = fmap Product (traverse eval terms)
 eval (Case num prod) = do
   nVal <- eval num
   pVal <- eval prod
   case (nVal, pVal) of
-    ((Nat i), (Closure _ (Product p))) -> eval $ projection i p
+    (Numeral i, p@(Product _)) -> do
+      let proj = projection p i
+      tell
+        [ show (Case num prod)
+            ++ " <-> projection of "
+            ++ show pVal
+            ++ " at i = "
+            ++ show nVal
+            ++ " <-> "
+            ++ show proj
+        ]
+      eval proj
     _ ->
       throwError $
         "Error while evaluating "
@@ -183,8 +214,8 @@ eval (Catch body) = do
   let usedLabels = Map.keys env
   let catchResult = runCatch (catch body) usedLabels
   case catchResult of
-    Constant i n -> return $ Nat (i + n)
-    ArgumentIndex i -> return $ Nat i
+    Constant i n -> return $ Numeral (i + n)
+    ArgumentIndex i -> return $ Numeral i
     Diverge msg -> throwError msg
 
 type Catch a = ReaderT [Label] Identity a
@@ -229,9 +260,35 @@ catch (Apply lhs rhs) = do
   case rightResult of
     Constant {} -> catch lhs
     otherResult -> return otherResult
-catch (Product prod) = undefined -- map (catch args) prod
-catch (Case n prod) = undefined -- map (Case n) prod
+catch (Product prod) = findStrict prod
+  where
+    findStrict :: [Term] -> Catch CatchResult
+    findStrict [] = undefined
+    findStrict (x : xs) = do
+      res <- catch x
+      case res of
+        i@(ArgumentIndex _) -> return i
+        _ -> findStrict xs
+catch (Case n prod) = do
+  res <- catch n
+  case res of
+    i@(ArgumentIndex _) -> return i
+    _ -> catch prod
 catch (Catch body) = catch body
+
+normalise :: Term -> Term
+normalise num@(Numeral _) = num
+normalise var@(Variable _) = var
+normalise (Lambda label typ body) = Lambda label typ (normalise body)
+normalise (Apply lhs rhs) = do
+  let lReduced = normalise lhs
+  let rReduced = normalise rhs
+  case lReduced of
+    (Lambda label _ body) -> substitute label rReduced body
+    _ -> Apply lReduced rReduced
+normalise (Product prod) = Product (map normalise prod)
+normalise (Case n prod) = Case (normalise n) (normalise prod)
+normalise (Catch body) = Catch (normalise body)
 
 substitute :: Label -> Term -> Term -> Term
 substitute _ _ literal@Numeral {} = literal
@@ -245,8 +302,9 @@ substitute old new abst@(Lambda label t body)
        in Lambda freshVar t (substitute old new (rename label freshVar body))
 substitute old new (Apply lhs rhs) =
   Apply (substitute old new lhs) (substitute old new rhs)
-substitute old new (Product prod) = undefined
-substitute old new (Case n prod) = undefined
+substitute old new (Product prod) = Product $ map (substitute old new) prod
+substitute old new (Case n body) =
+  Case (substitute old new n) (substitute old new body)
 substitute old new (Catch body) = Catch (substitute old new body)
 
 rename :: Label -> Label -> Term -> Term
@@ -258,8 +316,8 @@ rename old new abst@(Lambda label t body)
   | label == old = abst
   | otherwise = Lambda label t (rename old new body)
 rename old new (Apply lhs rhs) = Apply (rename old new lhs) (rename old new rhs)
-rename old new (Product prod) = undefined
-rename old new (Case n prod) = undefined
+rename old new (Product prod) = Product $ map (rename old new) prod
+rename old new (Case n body) = Case (rename old new n) (rename old new body)
 rename old new (Catch body) = Catch (rename old new body)
 
 fresh :: [Label] -> Label

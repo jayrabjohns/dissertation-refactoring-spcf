@@ -1,0 +1,50 @@
+(Catch (\"p". \"i". Case i p))
+x(
+    ((\"e". (\"p". \"i". Case i p) (0x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x0x(Case 1 e))))
+    x((\"e". (\"p". \"i". Case i p) (1x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x1x(Case 1 e))))
+    x((\"e". (\"p". \"i". Case i p) (2x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x2x(Case 1 e))))
+    x((\"e". (\"p". \"i". Case i p) (3x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x3x(Case 1 e))))
+    x((\"e". (\"p". \"i". Case i p) (4x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x4x(Case 1 e))))
+    x((\"e". (\"p". \"i". Case i p) (5x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x5x(Case 1 e))))
+    x((\"e". (\"p". \"i". Case i p) (6x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x6x(Case 1 e))))
+    x((\"e". (\"p". \"i". Case i p) (7x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x7x(Case 1 e))))
+    x((\"e". (\"p". \"i". Case i p) (8x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x8x(Case 1 e))))
+    x((\"e". (\"p". \"i". Case i p) (9x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x9x(Case 1 e))))
+    x((\"e". (\"p". \"i". Case i p) (10x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x10x(Case 1 e))))
+)
+
+
+1
+x(
+    (
+        (\"e". (\"p". \"i". Case i p) (0x(I)x(Case 1 e)))x
+        (\"e". (\"p". \"i". Case i p) ((I)x0x(Case 1 e)))
+    )
+    x((\"e". (\"p". \"i". Case i p) (1x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x1x(Case 1 e))))
+    x((\"e". (\"p". \"i". Case i p) (2x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x2x(Case 1 e))))
+    x((\"e". (\"p". \"i". Case i p) (3x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x3x(Case 1 e))))
+    x((\"e". (\"p". \"i". Case i p) (4x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x4x(Case 1 e))))
+    x((\"e". (\"p". \"i". Case i p) (5x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x5x(Case 1 e))))
+    x((\"e". (\"p". \"i". Case i p) (6x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x6x(Case 1 e))))
+    x((\"e". (\"p". \"i". Case i p) (7x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x7x(Case 1 e))))
+    x((\"e". (\"p". \"i". Case i p) (8x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x8x(Case 1 e))))
+    x((\"e". (\"p". \"i". Case i p) (9x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x9x(Case 1 e))))
+    x((\"e". (\"p". \"i". Case i p) (10x(I)x(Case 1 e)))x(\"e". (\"p". \"i". Case i p) ((I)x10x(Case 1 e))))
+)
+
+normalised
+
+1
+x(
+    ((\"e". \"a". Case a (0x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x0x(Case 1 e))))
+    x((\"e". \"a". Case a (1x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x1x(Case 1 e))))
+    x((\"e". \"a". Case a (2x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x2x(Case 1 e))))
+    x((\"e". \"a". Case a (3x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x3x(Case 1 e))))
+    x((\"e". \"a". Case a (4x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x4x(Case 1 e))))
+    x((\"e". \"a". Case a (5x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x5x(Case 1 e))))
+    x((\"e". \"a". Case a (6x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x6x(Case 1 e))))
+    x((\"e". \"a". Case a (7x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x7x(Case 1 e))))
+    x((\"e". \"a". Case a (8x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x8x(Case 1 e))))
+    x((\"e". \"a". Case a (9x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x9x(Case 1 e))))
+    x((\"e". \"a". Case a (10x(I)x(Case 1 e)))x(\"e". \"a". Case a ((I)x10x(Case 1 e))))
+)
