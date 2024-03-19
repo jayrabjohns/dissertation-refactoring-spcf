@@ -11,7 +11,7 @@ import qualified Data.Map.Internal.Debug as Map.Debug
 type Label = String
 
 data Term
-  = Literal Int
+  = Numeral Int
   | Variable Label
   | Lambda Label Type Term
   | Apply Term Term
@@ -29,7 +29,7 @@ data Error
   deriving (Eq, Show)
 
 instance Num Term where
-  fromInteger = Literal . fromIntegral
+  fromInteger = Numeral . fromIntegral
   (+) = undefined
   (*) = undefined
   abs = undefined
@@ -40,7 +40,7 @@ instance Show Term where
   show = beautify 0
     where
       beautify :: Int -> Term -> String
-      beautify _ (Literal i) = show i
+      beautify _ (Numeral i) = show i
       beautify _ (Variable x) = x
       beautify i (Lambda var _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "\\" ++ show var ++ {-": " ++ show t ++ -} ". " ++ beautify 0 term
       beautify i (Apply lhs rhs) = if i == 2 then "(" ++ s ++ ")" else s where s = beautify 1 lhs ++ " " ++ beautify 2 rhs
@@ -69,10 +69,13 @@ instance Show Type where
 
 -- A mapping of identifiers (labels) to closures. The closure to which an
 --   environment E maps an identifier x is normally denoted by E[x].
-type Environment = Map.Map Label Value
+type Environment = Map.Map Label Term
 
 emptyEnv :: Environment
 emptyEnv = Map.empty
+
+showEnv :: Environment -> String
+showEnv env = Map.Debug.showTreeWith (\k v -> show (k, v)) True False env
 
 -- The result of evaluation of a closure.
 --   Either a natural number or another closure.
@@ -89,6 +92,14 @@ instance Show Value where
 
 type Eval a = (ReaderT Environment (ExceptT String (WriterT [String] Identity))) a
 
+termToValue :: Eval Term -> Eval Value
+termToValue evaluation = do
+  result <- evaluation
+  env <- ask
+  return $ case result of
+    Numeral i -> Nat i
+    term -> Closure env term
+
 runEval :: Eval a -> Environment -> (Either String a, [String])
 runEval evl env = runIdentity . runWriterT . runExceptT $ runReaderT evl env
 
@@ -99,19 +110,19 @@ runEvalIO evaluation env = do
   either fail return result
 
 interpret :: Term -> Either String Value
-interpret term = fst $ runEval (eval term) emptyEnv
+interpret term = fst $ runEval (termToValue $ eval term) emptyEnv
 
 interpretIO :: Term -> IO Value
-interpretIO term = runEvalIO (eval term) emptyEnv
+interpretIO term = runEvalIO (termToValue $ eval term) emptyEnv
 
 -- Evaluation is commonly denoted by ⇓ and is sort of a decomposition of a
 --   closure (a redex and an evaluation context) into a value.
 --   If the term is of ground type then the result will be either a numeral,
 --   a variable, or
 --   (either a nautral number or a closure)
-eval :: Term -> Eval Value
-eval (Error err) = return $ Err err
-eval (Literal i) = return $ Nat i
+eval :: Term -> Eval Term
+eval lit@(Numeral _) = return lit
+eval err@(Error _) = return err
 eval (Variable label) = do
   env <- ask
   tell
@@ -123,32 +134,27 @@ eval (Variable label) = do
   case Map.lookup label env of
     Just val -> return val
     Nothing -> throwError $ "Undefined variable " ++ label
-eval lambda@Lambda {} = do
-  env <- ask
-  return $ Closure env lambda
+eval (Lambda label typ body) = return $ Lambda label typ (normalise body)
 eval (Apply lterm rterm) = do
   -- Call by value because evaluating argument before application
   arg <- eval rterm
   lval <- eval lterm
   case lval of
-    (Closure env' (Lambda label _ body)) -> do
+    Lambda label _ body -> do
       env <- ask
-      -- Taking the union of the newly constructed environment and the
-      --   evironment stored with the closure, this has the effect of closures
-      --   inheriting the environemnt in which they are applied, rather than
-      --   where they are defined. This is more consistent with how pratical
-      --   languages do things. E.g. when passing in an anonymous function,
-      --   you would expect it to capture the environemnt where it is called.
-      let newEnv = Map.unions [(Map.insert label arg env'), env]
+      let newEnv = Map.insert label arg env
+      let newBody = substitute label arg body
       tell
-        [ "\nApplying argument "
-            ++ show rterm
-            ++ " to body "
-            ++ show lterm
-            ++ " with environment\n"
-            ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False env'
+        [ "Apply ("
+            ++ show lval
+            ++ ") ["
+            ++ show arg
+            ++ "/"
+            ++ show label
+            ++ "] with new environment\n"
+            ++ showEnv env
         ]
-      local (const newEnv) (eval body)
+      local (const newEnv) (eval newBody)
     _ ->
       throwError $
         "Error while evaluating application - "
@@ -157,7 +163,6 @@ eval (Apply lterm rterm) = do
           ++ show rterm
           ++ " cannot be applied to "
           ++ show lterm
-          ++ ". \nEnv:\n"
 -- ++ Map.Debug.showTreeWith (\k x -> show (k, x)) True False env
 eval (Succ term) = do
   tell
@@ -168,19 +173,17 @@ eval (Succ term) = do
     ]
   val <- eval term
   case val of
-    Nat i -> return $ Nat (i + 1)
+    Numeral i -> return $ Numeral (i + 1)
     _ -> throwError $ "Cannot apply successor to non natural number" ++ show term
 eval (Pred term) = do
   tell
     [ "\nFinding predecessor of "
         ++ show term
-        ++ " with environemnt:\n"
-        -- ++ Map.Debug.showTreeWith (\k v -> show (k, v)) True False env
     ]
   val <- eval term
   case val of
-    Nat 0 -> return $ Nat 0
-    Nat i -> return $ Nat (i - 1)
+    Numeral 0 -> return $ Numeral 0
+    Numeral i -> return $ Numeral (i - 1)
     _ -> throwError $ "Cannot apply predeccessor to non natural number " ++ show term
 eval (If0 cond iftrue iffalse) = do
   tell
@@ -193,9 +196,9 @@ eval (If0 cond iftrue iffalse) = do
     ]
   val <- eval cond
   case val of
-    Nat 0 -> eval iftrue
-    Nat _ -> eval iffalse
-    err@(Err _) -> return err
+    Numeral 0 -> eval iftrue
+    Numeral _ -> eval iffalse
+    err@(Error _) -> return err
     _ ->
       throwError $
         "Cannot check if non numerical value is 0. "
@@ -205,9 +208,9 @@ eval (If0 cond iftrue iffalse) = do
 eval (YComb term) = do
   val <- eval term
   case val of
-    Closure env' abst@(Lambda label _ body) -> do
-      let selfApplication = (substitute label (YComb abst) body)
-      local (const env') (eval selfApplication)
+    abst@(Lambda label _ body) -> do
+      let selfApplication = substitute label (YComb abst) body
+      eval selfApplication
     _ -> throwError "Error, it is only possible to take a fixed point of a lambda abstraction"
 -- Following Laird's definition of catch which has ground type rather than
 --   Cartwreight & Fallensien's family of t -> o typed operators.
@@ -218,9 +221,9 @@ eval (Catch body) = do
   env <- ask
   let usedLabels = Map.keys env
   case catch body usedLabels of
-    CaughtError err -> return $ Err err
-    Constant i n -> return $ Nat (i + n)
-    ArgumentIndex i -> return $ Nat i
+    CaughtError err -> return $ Error err
+    Constant i n -> return $ Numeral (i + n)
+    ArgumentIndex i -> return $ Numeral i
     Diverge msg -> throwError msg
 
 data CatchResult
@@ -230,9 +233,9 @@ data CatchResult
   | Diverge String
 
 catch :: Term -> [Label] -> CatchResult
-catch (Literal i) args = Constant i (length args)
+catch (Numeral i) args = Constant i (length args)
 catch (Error err) _ = CaughtError err
-catch (Variable label) args = case elemIndex label args of
+catch (Variable label) args = case lastElemIndex label args of
   Just i -> ArgumentIndex i
   Nothing ->
     Diverge $
@@ -255,8 +258,25 @@ catch (If0 predicate tt ff) args =
 catch (YComb body) args = catch body args
 catch (Catch body) args = catch body args
 
+normalise :: Term -> Term
+normalise num@(Numeral _) = num
+normalise err@(Error _) = err
+normalise var@(Variable _) = var
+normalise (Lambda label typ body) = Lambda label typ (normalise body)
+normalise (Apply lhs rhs) = do
+  let lReduced = normalise lhs
+  let rReduced = normalise rhs
+  case lReduced of
+    (Lambda label _ body) -> substitute label rReduced body
+    _ -> Apply lReduced rReduced
+normalise (Succ term) = Succ $ normalise term
+normalise (Pred term) = Pred $ normalise term
+normalise (If0 cond tt ff) = If0 (normalise cond) (normalise tt) (normalise ff)
+normalise (Catch body) = Catch (normalise body)
+normalise (YComb body) = YComb (normalise body)
+
 substitute :: Label -> Term -> Term -> Term
-substitute _ _ literal@Literal {} = literal
+substitute _ _ literal@Numeral {} = literal
 substitute old new var@(Variable label)
   | label == old = new
   | otherwise = var
@@ -277,7 +297,7 @@ substitute _ _ err@(Error _) = err
 substitute old new (Catch body) = Catch (substitute old new body)
 
 rename :: Label -> Label -> Term -> Term
-rename _ _ literal@(Literal _) = literal
+rename _ _ literal@(Numeral _) = literal
 rename old new var@(Variable label)
   | label == old = Variable new
   | otherwise = var
@@ -300,7 +320,7 @@ fresh usedLabels = case (find (`notElem` usedLabels) labels) of
   Nothing -> error "Error, somehow all variable names have been used. This shouldn't be possible."
 
 used :: Term -> [Label]
-used (Literal _) = []
+used (Numeral _) = []
 used (Variable label) = [label]
 used (Lambda label _ term) = label : used term
 used (Apply lhs rhs) = used lhs ++ used rhs
@@ -319,3 +339,8 @@ alphabetLazyList = [[char] | char <- ['a' .. 'z']]
 
 alphaNumsLazyList :: [String]
 alphaNumsLazyList = [char : show i | i <- [1 :: Int ..], char <- ['a' .. 'z']]
+
+lastElemIndex :: (Eq a) => a -> [a] -> Maybe Int
+lastElemIndex toFind elems =
+  let reversedIndex = elemIndex toFind (reverse elems)
+   in fmap (\i -> (length elems - i - 1)) reversedIndex
