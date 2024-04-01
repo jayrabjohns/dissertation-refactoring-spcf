@@ -1,4 +1,4 @@
-module BoundedSPCF (Term (..), Type (..), Value (..), Label, Environment, Numeral, Product, emptyEnv, emptyProduct, projection, insertProduct, removeProduct, numerals, upperBound, eval, normalise, interpret, interpretIO, substitute, runEval, runEvalIO) where
+module BoundedSPCF (Term (..), Type (..), Value (..), Label, Environment, Numeral, Product, Eval, emptyEnv, emptyProduct, projection, insertProduct, removeProduct, numerals, upperBound, eval, normalise, interpret, interpretIO, substitute, runEval, runEvalIO) where
 
 import Control.Monad.Except
 import Control.Monad.Identity
@@ -7,6 +7,7 @@ import Control.Monad.Writer
 import Data.List
 import qualified Data.Map as Map
 import qualified Data.Map.Internal.Debug as Map.Debug
+import Debug.Trace
 
 type Label = String
 
@@ -20,23 +21,26 @@ emptyProduct = Product []
 -- A family of n projections πᵢ: Tⁿ => T
 -- π₀(t) = I where I is the empty product
 projection :: Term -> Int -> Term
-projection _ 0 = emptyProduct
+projection (Product _) 0 = emptyProduct
 projection (Product prod) i = Data.List.genericIndex prod (i - 1)
-projection var@(Variable _) i = Case (Numeral i) var
-projection _ _ = undefined
+projection term i = Case (Numeral i) term
 
+-- projection term _ = error $ "Cannot project term " ++ show term
+
+-- Insert element into 0 indexed n-fold product at a given position
 insertProduct :: Product -> Term -> Int -> Product
 insertProduct prod toInsert index =
   let (before, after) = Data.List.splitAt index prod
    in before ++ [toInsert] ++ after
 
+-- Remove element from 0 indexed n-fold product at a given position
 removeProduct :: Product -> Int -> Product
 removeProduct prod index =
-  let (before, after) = Data.List.splitAt index prod
-   in (take (index - 1) before) ++ after
+  let (before, after) = Data.List.splitAt (index + 1) prod
+   in (take index before) ++ after
 
 upperBound :: Numeral
-upperBound = 10
+upperBound = 2
 
 numerals :: [Numeral]
 numerals = [0 :: Numeral .. upperBound]
@@ -46,6 +50,7 @@ data Term
   | Variable Label
   | Lambda Label Type Term
   | Apply Term Term
+  | Succ Term
   | Product Product -- <- sneakily my injection, uses the list constructor to convert it to the underlying datastructre
   | Case Term Term -- <- my projection, uses the index function of the underlying list to return a term
   | Catch Term
@@ -66,29 +71,32 @@ instance Show Term where
       beautify _ (Numeral i) = show i
       beautify _ (Variable x) = x
       beautify i (Lambda var _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "\\" ++ show var ++ {-": " ++ show t ++ -} ". " ++ beautify 0 term
-      beautify i (Apply lhs@(Lambda label _ _) rhs) = if i == 2 then "(" ++ s ++ ")" else s where s = show lhs ++ "[" ++ show rhs ++ "/" ++ show label ++ "]" -- beautify 1 lhs ++ " " ++ beautify 2 rhs
+      beautify i (Apply lhs@(Lambda label _ _) rhs) = if i == 2 then "(" ++ s ++ ")" else s where s = beautify 2 lhs ++ "[" ++ show rhs ++ "/" ++ show label ++ "]" -- beautify 1 lhs ++ " " ++ beautify 2 rhs
       beautify i (Apply lhs rhs) = if i == 2 then "(" ++ s ++ ")" else s where s = beautify 1 lhs ++ " " ++ beautify 2 rhs
+      beautify i (Succ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Succ " ++ beautify 2 term
       beautify i (Product []) = if i /= 0 then "(" ++ s ++ ")" else s where s = "I"
-      beautify i (Product prod) = if i /= 0 then "(" ++ s ++ ")" else s where s = (intercalate "x" (map (beautify 2) prod))
+      beautify _ (Product prod) = "<" ++ (intercalate ", " (map (beautify 2) prod)) ++ ">"
       beautify i (Case numeral prod) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Case <" ++ beautify 0 numeral ++ ", " ++ beautify 0 prod ++ ">"
       beautify i (Catch term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Catch " ++ beautify 2 term
 
 data Type
   = Base
-  | (:->) Type Type
   | Empty
-  | Cross Type Type -- <- do we need this?
+  | (:->) Type Type
+  | Unit
+  | Cross Type Type
   deriving (Eq)
 
 instance Show Type where
-  show = beautify
+  show = beautify 0
     where
-      beautify :: Type -> String
-      beautify Base = "o"
-      beautify (Base :-> rhs) = "o -> " ++ beautify rhs
-      beautify (lhs :-> rhs) = "(" ++ beautify lhs ++ ") -> " ++ beautify rhs
-      beautify (Cross lhs rhs) = "(" ++ beautify lhs ++ ")x(" ++ beautify rhs ++ ")"
-      beautify Empty = "0"
+      beautify :: Int -> Type -> String
+      beautify i Base = "o"
+      beautify i (Base :-> rhs) = "o -> " ++ beautify 0 rhs
+      beautify i (lhs :-> rhs) = beautify 0 lhs ++ " -> " ++ beautify 0 rhs
+      beautify i (Cross lhs rhs) = if i == 0 then "(" ++ s ++ ")" else s where s = beautify 1 lhs ++ "x" ++ beautify 1 rhs
+      beautify i Unit = "()"
+      beautify i Empty = "0"
 
 -- A mapping of identifiers (labels) to closures. The closure to which an
 --   environment E maps an identifier x is normally denoted by E[x].
@@ -183,12 +191,21 @@ eval (Apply lterm rterm) = do
           ++ show rterm
           ++ " cannot be applied to "
           ++ show lterm
+eval (Succ term) = do
+  tell ["\nFind successor of " ++ show term]
+  val <- eval term
+  case val of
+    Numeral i ->
+      if i < (upperBound - 1)
+        then return $ Numeral (i + 1)
+        else return $ Numeral i
+    _ -> throwError $ "Cannot apply successor to non numeral" ++ show term
 eval (Product terms) = fmap Product (traverse eval terms)
 eval (Case num prod) = do
   nVal <- eval num
   pVal <- eval prod
   case (nVal, pVal) of
-    (Numeral i, p@(Product _)) -> do
+    (Numeral i, p@(Product {})) -> do
       let proj = projection p i
       tell
         [ show (Case num prod)
@@ -200,6 +217,14 @@ eval (Case num prod) = do
             ++ show proj
         ]
       eval proj
+    (Numeral 1, term) -> do
+      tell
+        [ show (Case num prod)
+            ++ " <-> treat "
+            ++ show pVal
+            ++ " as a single element product"
+        ]
+      eval term
     _ ->
       throwError $
         "Error while evaluating "
@@ -208,7 +233,7 @@ eval (Case num prod) = do
           ++ show num
           ++ " doesn't reduce to a numeral or "
           ++ show prod
-          ++ "doesn't reduce to a product"
+          ++ " doesn't reduce to a product"
 eval (Catch body) = do
   env <- ask
   let usedLabels = Map.keys env
@@ -260,6 +285,7 @@ catch (Apply lhs rhs) = do
   case rightResult of
     Constant {} -> catch lhs
     otherResult -> return otherResult
+catch (Succ body) = catch body
 catch (Product prod) = findStrict prod
   where
     findStrict :: [Term] -> Catch CatchResult
@@ -281,11 +307,11 @@ normalise num@(Numeral _) = num
 normalise var@(Variable _) = var
 normalise (Lambda label typ body) = Lambda label typ (normalise body)
 normalise (Apply lhs rhs) = do
-  let lReduced = normalise lhs
-  let rReduced = normalise rhs
-  case lReduced of
-    (Lambda label _ body) -> substitute label rReduced body
-    _ -> Apply lReduced rReduced
+  let arg = normalise rhs
+  case lhs of
+    (Lambda label _ body) -> normalise (substitute label arg body)
+    _ -> Apply (normalise lhs) arg
+normalise (Succ body) = Succ (normalise body)
 normalise (Product prod) = Product (map normalise prod)
 normalise (Case n prod) = Case (normalise n) (normalise prod)
 normalise (Catch body) = Catch (normalise body)
@@ -302,10 +328,28 @@ substitute old new abst@(Lambda label t body)
        in Lambda freshVar t (substitute old new (rename label freshVar body))
 substitute old new (Apply lhs rhs) =
   Apply (substitute old new lhs) (substitute old new rhs)
+substitute old new (Succ body) = Succ $ substitute old new body
 substitute old new (Product prod) = Product $ map (substitute old new) prod
 substitute old new (Case n body) =
   Case (substitute old new n) (substitute old new body)
 substitute old new (Catch body) = Catch (substitute old new body)
+
+-- substitute :: Label -> Term -> Term -> Term
+-- substitute _ _ literal@Numeral {} = literal
+-- substitute old new var@(Variable label)
+--   | label == old = new
+--   | otherwise = var
+-- substitute old new abst@(Lambda label t body)
+--   | label == old = abst
+--   | otherwise =
+--       let freshVar = fresh (used new ++ used body ++ [old, label])
+--        in Lambda freshVar t (substitute old new (rename label freshVar body))
+-- substitute old new (Apply lhs rhs) =
+--   Apply (substitute old new lhs) (substitute old new rhs)
+-- substitute old new (Product prod) = Product $ map (substitute old new) prod
+-- substitute old new (Case n body) =
+--   Case (substitute old new n) (substitute old new body)
+-- substitute old new (Catch body) = Catch (substitute old new body)
 
 rename :: Label -> Label -> Term -> Term
 rename _ _ literal@(Numeral _) = literal
@@ -316,6 +360,7 @@ rename old new abst@(Lambda label t body)
   | label == old = abst
   | otherwise = Lambda label t (rename old new body)
 rename old new (Apply lhs rhs) = Apply (rename old new lhs) (rename old new rhs)
+rename old new (Succ body) = Succ (rename old new body)
 rename old new (Product prod) = Product $ map (rename old new) prod
 rename old new (Case n body) = Case (rename old new n) (rename old new body)
 rename old new (Catch body) = Catch (rename old new body)
@@ -330,6 +375,7 @@ used (Numeral _) = []
 used (Variable label) = [label]
 used (Lambda label _ term) = label : used term
 used (Apply lhs rhs) = used lhs ++ used rhs
+used (Succ body) = used body
 used (Product prod) = prod >>= used
 used (Case num prod) = used num ++ used prod
 used (Catch term) = used term

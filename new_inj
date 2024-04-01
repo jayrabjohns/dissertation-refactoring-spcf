@@ -44,3 +44,8 @@ Inj f := \"f".
             (8x((\"x". f (8))))x
             (9x((\"x". f (9))))>
             [\"p". \"i". Case <i, p>/"f"]
+
+
+Apply 
+    (\"c". Case <
+            Case <1, <1, <(\"a". \"b". Case <b, <1, (I), (Case <1, a>), (Case <2, a>)>>), (\"a". \"b". Case <b, <(I), 1, (Case <1, a>), (Case <2, a>)>>), (\"a". \"b". Case <b, <(I), (Case <1, a>), 1, (Case <2, a>)>>)>>>, <(Case <I, <((I) <(Case <1, c>), (Case <2, c>)>), ((Case <1, Case <2, <1, <(\"a". \"b". Case <b, <1, (I), (Case <1, a>), (Case <2, a>)>>), (\"a". \"b". Case <b, <(I), 1, (Case <1, a>), (Case <2, a>)>>), (\"a". \"b". Case <b, <(I), (Case <1, a>), 1, (Case <2, a>)>>)>>>>) <(I), (Case <2, c>)>)>>), (Case <Case <1, c>, <((I) <(Case <1, c>), (Case <2, c>)>), ((Case <1, Case <2, <1, <(\"a". \"b". Case <b, <1, (I), (Case <1, a>), (Case <2, a>)>>), (\"a". \"b". Case <b, <(I), 1, (Case <1, a>), (Case <2, a>)>>), (\"a". \"b". Case <b, <(I), (Case <1, a>), 1, (Case <2, a>)>>)>>>>) <(I), (Case <2, c>)>)>>), (Case <Case <2, c>, <((I) <(Case <1, c>), (Case <2, c>)>), ((Case <1, Case <2, <1, <(\"a". \"b". Case <b, <1, (I), (Case <1, a>), (Case <2, a>)>>), (\"a". \"b". Case <b, <(I), 1, (Case <1, a>), (Case <2, a>)>>), (\"a". \"b". Case <b, <(I), (Case <1, a>), 1, (Case <2, a>)>>)>>>>) <(I), (Case <2, c>)>)>>)>>) [<1, 2, 3>/"c"] with new environment

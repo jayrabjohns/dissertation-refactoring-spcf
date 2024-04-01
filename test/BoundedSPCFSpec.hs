@@ -7,7 +7,8 @@ tests :: Test
 tests =
   TestList
     [ evalCase,
-      evalCase0
+      evalCase0,
+      evalCaseWithCatchAsNumeral
     ]
 
 evalCase :: Test
@@ -30,6 +31,18 @@ evalCase0 = do
   TestLabel
     "should evaluate to the emtpy product for (Case 0 p)"
     $ assertEval term emptyEnv emptyProduct
+
+-- Using the strictness index of a function as the index of a case statement
+evalCaseWithCatchAsNumeral :: Test
+evalCaseWithCatchAsNumeral = do
+  let f = Lambda "x" Base $ Lambda "y" Base $ Variable "x"
+  let prod = Product $ map Numeral [0 .. 5]
+  let strictIndex = Succ $ Catch f
+  let term = Case strictIndex prod
+  let expectedResult = Numeral 0
+  TestLabel
+    "should expect correct behavour when using Catch to generate a numeral for Case, including using hte correct index offset (0 or 1)"
+    $ assertEval term emptyEnv expectedResult
 
 assertEval :: Term -> Environment -> Term -> Test
 assertEval term env expectedTerm =

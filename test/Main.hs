@@ -1,8 +1,10 @@
 module Main (main) where
 
--- import qualified BoundedASPCFFragmentSpec
--- import qualified BoundedSPCFSpec
-import qualified SPCFSpec
+import qualified BoundedASPCFFragmentSpec
+import qualified BoundedSPCFSpec
+import qualified BoundedSPCFTypesSpec
+-- import qualified SPCFSpec
+import qualified ProductSpec
 import qualified System.Exit as Exit
 import Test.HUnit
 
@@ -17,7 +19,9 @@ tests :: Test
 tests =
   TestList
     [ -- SPCFHelpersSpec.tests,
-      SPCFSpec.tests
-      -- BoundedSPCFSpec.tests
-      -- BoundedASPCFFragmentSpec.tests
+      -- SPCFSpec.tests
+      -- BoundedSPCFSpec.tests,
+      -- ProductSpec.tests,
+      BoundedASPCFFragmentSpec.tests
+      -- BoundedSPCFTypesSpec.tests
     ]

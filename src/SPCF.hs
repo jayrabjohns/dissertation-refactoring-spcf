@@ -98,6 +98,7 @@ termToValue evaluation = do
   env <- ask
   return $ case result of
     Numeral i -> Nat i
+    Error e -> Err e
     term -> Closure env term
 
 runEval :: Eval a -> Environment -> (Either String a, [String])
