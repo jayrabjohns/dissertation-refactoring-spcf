@@ -80,7 +80,7 @@ instance Show Term where
       beautify i (Catch term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Catch " ++ beautify 2 term
 
 data Type
-  = Base
+  = Base -- Base type (numerals)
   | Empty
   | (:->) Type Type
   | Unit

@@ -7,10 +7,10 @@ import Debug.Trace
 -- Take a term of the bounded SPCF and perform an injection into a 'tuple form'
 --   which contains the index at which `f` is strict as well a series of
 --   continuation functions for each possible value of the argument.
-inj :: Term -> Term
-inj f@(Lambda _ (Cross _ _) _) =
-  let fType = runJudgement (typeof f) emptyContext
-   in trace ("inj on type: " ++ show fType ++ "\n") $ Apply (injTerm fType) f
+inj :: Term -> Eval Term
+inj f@(Lambda _ (Cross _ _) _) = do
+  fType <- runJudgement (typeof f) emptyContext
+  return $ trace ("inj on type: " ++ show fType ++ "\n") $ Apply (injTerm fType) f
 inj f = error $ "cannot inj " ++ show f
 
 injTerm :: Type -> Term
@@ -52,12 +52,12 @@ injTerm typ = Lambda "f" typ $ Case strictnessIndex continuations
     n = upperBound
 
 -- Takes a term from the ASPCF and projects it back to SPCF
-proj :: Term -> Term
-proj term =
-  let typ = runJudgement (typeof term) emptyContext
-   in case typ of
-        (Cross ltype _) -> Apply (projTerm ltype) term
-        _ -> error $ "cannot proj on type " ++ show typ ++ "\n" ++ show term
+proj :: Term -> Eval Term
+proj term = do
+  typ <- runJudgement (typeof term) emptyContext
+  return $ case typ of
+    (Cross ltype _) -> Apply (projTerm ltype) term
+    _ -> error $ "cannot proj on type " ++ show typ ++ "\n" ++ show term
 
 -- let strictnessIndex = projection term 1
 --     continuations = projection term 2
