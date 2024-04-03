@@ -1,5 +1,8 @@
-module SPCF (Term (..), Error (..), Type (..), Value (..), Label, Environment, emptyEnv, eval, interpret, interpretIO, substitute, runEval, runEvalIO) where
+{-# LANGUAGE DeriveFunctor #-}
 
+module SPCF where -- (Term (..), Error (..), Type (..), Value (..), Label, Environment, termInfo, emptyEnv, eval, interpret, interpretIO, substitute, runEval, runEvalIO) where
+
+import Control.Monad.State
 import Control.Monad.Except
 import Control.Monad.Identity
 import Control.Monad.Reader
@@ -10,47 +13,112 @@ import qualified Data.Map.Internal.Debug as Map.Debug
 
 type Label = String
 
-data Term
-  = Numeral Int
-  | Variable Label
-  | Lambda Label Type Term
-  | Apply Term Term
-  | Succ Term
-  | Pred Term
-  | YComb Term
-  | If0 Term Term Term
-  | Error Error
-  | Catch Term
-  deriving (Eq)
+data Term info
+  = Numeral info Int
+  | Variable info Label
+  | Lambda info Label Type (Term info)
+  | Apply info (Term info) (Term info)
+  | Succ info (Term info)
+  | Pred info (Term info)
+  | YComb info (Term info)
+  | If0 info (Term info) (Term info) (Term info)
+  | Error info Error
+  | Catch info (Term info)
+  deriving (Eq, Functor)
+
+termInfo :: Term info -> info
+termInfo (Numeral inf _) = inf
+termInfo (Variable inf _) = inf
+termInfo (Lambda inf _ _ _) = inf
+termInfo (Apply inf _ _) = inf
+termInfo (If0 inf _ _ _) = inf
+termInfo (Succ inf _) = inf
+termInfo (Pred inf _) = inf
+termInfo (YComb inf _) = inf
+termInfo (Error inf _) = inf
+termInfo (Catch inf _) = inf
+
+data Command info
+  = CBind info Label (Term info)
+  | CEval info (Term info)
+  deriving (Eq, Functor)
+
+data Prog info = Prog
+  { pinfo_of :: info,
+    prog_of :: [Command info]
+  }
+  deriving (Eq, Functor)
+
+type CommandResult info = Either String (Term info)
+
+initState = (emptyEnv, [])
+
+interpProg :: Prog info -> [CommandResult info]
+interpProg = (`evalState` initState) . interpCommands . prog_of
+
+type InterpState info = (Environment (Term info), [CommandResult info])
+interpCommands :: [Command info] -> State (InterpState info) [CommandResult info]
+interpCommands [] = do
+  (_, results) <- get
+  return results
+interpCommands (command : cs) = do
+  (env, results) <- get
+  put $ case command of 
+        (CBind _ label term) -> 
+          let updatedEnv = Map.insert label term env 
+          in (updatedEnv, results)
+        (CEval _ term) -> do
+          let result = fst $ runEval (eval term) env
+          (env, results ++ [result])
+  interpCommands cs
+  -- let res = interpCommand env command
+  -- put $ case res of
+  --   Left (label, term) -> (Map.insert label (substEnv env term) env, results ++ [res])
+  --   Right _ -> (env, results ++ [res])
+  -- interpCommands cs
+
+-- interpCommand :: Environment (Term info) -> Command info -> Either (Label, Term info) (Term info)
+-- interpCommand _ (CBind fi id t) = Left (id, t)
+-- interpCommand env (CEval fi t) =
+--   Right (eval (fold (\acc k v -> termSubst k v acc) t env))
+
+-- substEnv :: Environment (Term info) -> Term info -> Term info
+-- substEnv env term =
+--   -- fold (\acc k v -> termSubst k v acc) t env
+--     foldl (\acc label ->
+--             case Map.lookup id env of
+--               Just v  -> substitute label v acc
+--               Nothing -> error "free variable not bound in environment")
+--     term (freeVars term)
 
 data Error
   = Error1
   | Error2
   deriving (Eq, Show)
 
-instance Num Term where
-  fromInteger = Numeral . fromIntegral
-  (+) = undefined
-  (*) = undefined
-  abs = undefined
-  signum = undefined
-  negate = undefined
+-- instance Num (Term info) where
+--   fromInteger = (Numeral info) . fromIntegral
+--   (+) = undefined
+--   (*) = undefined
+--   abs = undefined
+--   signum = undefined
+--   negate = undefined
 
-instance Show Term where
+instance Show (Term info) where
   show = beautify 0
     where
-      beautify :: Int -> Term -> String
-      beautify _ (Numeral i) = show i
-      beautify _ (Variable x) = x
-      beautify i (Lambda var _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "\\" ++ show var ++ {-": " ++ show t ++ -} ". " ++ beautify 0 term
-      beautify i (Apply lhs rhs) = if i == 2 then "(" ++ s ++ ")" else s where s = beautify 1 lhs ++ " " ++ beautify 2 rhs
-      beautify i (Succ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Succ " ++ beautify 2 term
-      beautify i (Pred term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Pred " ++ beautify 2 term
-      beautify i (YComb term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Y " ++ beautify 2 term
-      beautify i (If0 cond lterm rterm) = if i == 2 then "(" ++ s ++ ")" else s where s = "If0 " ++ beautify 1 cond ++ " then " ++ beautify 1 lterm ++ " else " ++ beautify 1 rterm
-      beautify _ (Error Error1) = "Error1"
-      beautify _ (Error Error2) = "Error2"
-      beautify i (Catch term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Catch " ++ beautify 2 term
+      beautify :: Int -> Term info -> String
+      beautify _ (Numeral _ i) = show i
+      beautify _ (Variable _ x) = x
+      beautify i (Lambda _ var _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "\\" ++ show var ++ {-": " ++ show t ++ -} ". " ++ beautify 0 term
+      beautify i (Apply _ lhs rhs) = if i == 2 then "(" ++ s ++ ")" else s where s = beautify 1 lhs ++ " " ++ beautify 2 rhs
+      beautify i (Succ _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Succ " ++ beautify 2 term
+      beautify i (Pred _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Pred " ++ beautify 2 term
+      beautify i (YComb _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Y " ++ beautify 2 term
+      beautify i (If0 _ cond lterm rterm) = if i == 2 then "(" ++ s ++ ")" else s where s = "If0 " ++ beautify 1 cond ++ " then " ++ beautify 1 lterm ++ " else " ++ beautify 1 rterm
+      beautify _ (Error _ Error1) = "Error1"
+      beautify _ (Error _ Error2) = "Error2"
+      beautify i (Catch _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Catch " ++ beautify 2 term
 
 -- In the bounded SPCF, the base type will also be bounded. E.g. Boolean or n natural ints
 
@@ -69,62 +137,64 @@ instance Show Type where
 
 -- A mapping of identifiers (labels) to closures. The closure to which an
 --   environment E maps an identifier x is normally denoted by E[x].
-type Environment = Map.Map Label Term
+type Environment a = Map.Map Label a
 
-emptyEnv :: Environment
+emptyEnv :: Environment a
 emptyEnv = Map.empty
 
-showEnv :: Environment -> String
+showEnv :: (Show a) => Environment a -> String
 showEnv env = Map.Debug.showTreeWith (\k v -> show (k, v)) True False env
 
 -- The result of evaluation of a closure.
 --   Either a natural number or another closure.
-data Value
+data Value info
   = Nat Int
   | Err Error
-  | Closure Environment Term
+  | Closure (Environment (Term info)) (Term info)
   deriving (Eq)
 
-instance Show Value where
+instance Show (Value info) where
   show (Nat i) = show i
   show (Err err) = show err
   show (Closure env term) = "Closure " ++ show env ++ show term
 
-type Eval a = (ReaderT Environment (ExceptT String (WriterT [String] Identity))) a
+type Eval a = (ReaderT (Environment a) (ExceptT String (WriterT [String] Identity))) a
 
-termToValue :: Eval Term -> Eval Value
-termToValue evaluation = do
-  result <- evaluation
-  env <- ask
-  return $ case result of
-    Numeral i -> Nat i
-    Error e -> Err e
-    term -> Closure env term
+-- termToValue :: Eval (Term info) -> Eval (Value info)
+-- termToValue evaluation = do
+--   result <- evaluation
+--   undefined
 
-runEval :: Eval a -> Environment -> (Either String a, [String])
+-- env <- ask
+-- return $ case result of
+--   Numeral _ i -> Nat i
+--   Error _ e -> Err e
+--   term -> Closure env term
+
+runEval :: Eval a -> Environment a -> (Either String a, [String])
 runEval evl env = runIdentity . runWriterT . runExceptT $ runReaderT evl env
 
-runEvalIO :: Eval a -> Environment -> IO a
+runEvalIO :: Eval a -> Environment a -> IO a
 runEvalIO evaluation env = do
   let (result, logs) = runEval evaluation env
   _ <- traverse putStrLn logs
   either fail return result
 
-interpret :: Term -> Either String Value
-interpret term = fst $ runEval (termToValue $ eval term) emptyEnv
+interpret :: Term info -> Either String (Term info)
+interpret term = fst $ runEval (eval term) emptyEnv
 
-interpretIO :: Term -> IO Value
-interpretIO term = runEvalIO (termToValue $ eval term) emptyEnv
+interpretIO :: Term info -> IO (Term info)
+interpretIO term = runEvalIO (eval term) emptyEnv
 
 -- Evaluation is commonly denoted by ⇓ and is sort of a decomposition of a
 --   closure (a redex and an evaluation context) into a value.
 --   If the term is of ground type then the result will be either a numeral,
 --   a variable, or
 --   (either a nautral number or a closure)
-eval :: Term -> Eval Term
-eval lit@(Numeral _) = return lit
-eval err@(Error _) = return err
-eval (Variable label) = do
+eval :: Term info -> Eval (Term info)
+eval lit@(Numeral {}) = return lit
+eval err@(Error {}) = return err
+eval (Variable _ label) = do
   env <- ask
   tell
     [ "\nEvaluating "
@@ -135,13 +205,13 @@ eval (Variable label) = do
   case Map.lookup label env of
     Just val -> return val
     Nothing -> throwError $ "Undefined variable " ++ label
-eval (Lambda label typ body) = return $ Lambda label typ (normalise body)
-eval (Apply lterm rterm) = do
+eval (Lambda inf label typ body) = return $ Lambda inf label typ (normalise body)
+eval (Apply _ lterm rterm) = do
   -- Call by value because evaluating argument before application
   arg <- eval rterm
   lval <- eval lterm
   case lval of
-    Lambda label _ body -> do
+    Lambda _ label _ body -> do
       env <- ask
       let newEnv = Map.insert label arg env
       let newBody = substitute label arg body
@@ -165,7 +235,7 @@ eval (Apply lterm rterm) = do
           ++ " cannot be applied to "
           ++ show lterm
 -- ++ Map.Debug.showTreeWith (\k x -> show (k, x)) True False env
-eval (Succ term) = do
+eval (Succ _ term) = do
   tell
     [ "\nFinding successor of "
         ++ show term
@@ -174,19 +244,19 @@ eval (Succ term) = do
     ]
   val <- eval term
   case val of
-    Numeral i -> return $ Numeral (i + 1)
+    Numeral inf i -> return $ Numeral inf (i + 1)
     _ -> throwError $ "Cannot apply successor to non natural number" ++ show term
-eval (Pred term) = do
+eval (Pred _ term) = do
   tell
     [ "\nFinding predecessor of "
         ++ show term
     ]
   val <- eval term
   case val of
-    Numeral 0 -> return $ Numeral 0
-    Numeral i -> return $ Numeral (i - 1)
+    Numeral inf 0 -> return $ Numeral inf 0
+    Numeral inf i -> return $ Numeral inf (i - 1)
     _ -> throwError $ "Cannot apply predeccessor to non natural number " ++ show term
-eval (If0 cond iftrue iffalse) = do
+eval (If0 _ cond iftrue iffalse) = do
   tell
     [ "if "
         ++ show cond
@@ -197,20 +267,20 @@ eval (If0 cond iftrue iffalse) = do
     ]
   val <- eval cond
   case val of
-    Numeral 0 -> eval iftrue
-    Numeral _ -> eval iffalse
-    err@(Error _) -> return err
+    Numeral _ 0 -> eval iftrue
+    Numeral {} -> eval iffalse
+    err@(Error {}) -> return err
     _ ->
       throwError $
         "Cannot check if non numerical value is 0. "
           ++ "Specifically, "
           ++ show cond
           ++ " doesn't evaluate to a number."
-eval (YComb term) = do
+eval (YComb inf term) = do
   val <- eval term
   case val of
-    abst@(Lambda label _ body) -> do
-      let selfApplication = substitute label (YComb abst) body
+    abst@(Lambda _ label _ body) -> do
+      let selfApplication = substitute label (YComb inf abst) body
       eval selfApplication
     _ -> throwError "Error, it is only possible to take a fixed point of a lambda abstraction"
 -- Following Laird's definition of catch which has ground type rather than
@@ -218,13 +288,13 @@ eval (YComb term) = do
 -- Need a way to track the index of each argument. Perhaps store a special variable in the context?
 -- The alternative would be either re-writing the eval function inside of the case for catch,
 -- or passing in a special parameter counting the index / having a custom monad tracking hte same state
-eval (Catch body) = do
+eval (Catch inf body) = do
   env <- ask
   let usedLabels = Map.keys env
   case catch body usedLabels of
-    CaughtError err -> return $ Error err
-    Constant i n -> return $ Numeral (i + n)
-    ArgumentIndex i -> return $ Numeral i
+    CaughtError err -> return $ Error inf err
+    Constant i n -> return $ Numeral inf (i + n)
+    ArgumentIndex i -> return $ Numeral inf i
     Diverge msg -> throwError msg
 
 data CatchResult
@@ -233,10 +303,10 @@ data CatchResult
   | ArgumentIndex Int
   | Diverge String
 
-catch :: Term -> [Label] -> CatchResult
-catch (Numeral i) args = Constant i (length args)
-catch (Error err) _ = CaughtError err
-catch (Variable label) args = case lastElemIndex label args of
+catch :: Term info -> [Label] -> CatchResult
+catch (Numeral _ i) args = Constant i (length args)
+catch (Error _ err) _ = CaughtError err
+catch (Variable _ label) args = case lastElemIndex label args of
   Just i -> ArgumentIndex i
   Nothing ->
     Diverge $
@@ -244,93 +314,93 @@ catch (Variable label) args = case lastElemIndex label args of
         ++ label
         ++ " is unbound and so cannot be caught. This program shouldn't "
         ++ "have correctly typed checked in the first place."
-catch (Lambda label _ body) args = catch body (args ++ [label]) -- TODO: ensure variable shadowing works as expected
-catch (Apply lhs rhs) args =
+catch (Lambda _ label _ body) args = catch body (args ++ [label]) -- TODO: ensure variable shadowing works as expected
+catch (Apply _ lhs rhs) args =
   case catch rhs args of
     Constant {} -> catch lhs args
     otherResult -> otherResult
-catch (Succ body) args = catch body args
-catch (Pred body) args = catch body args
-catch (If0 predicate tt ff) args =
+catch (Succ _ body) args = catch body args
+catch (Pred _ body) args = catch body args
+catch (If0 _ predicate tt ff) args =
   case catch predicate args of
     Constant 0 _ -> catch tt args
     Constant {} -> catch ff args
     otherResult -> otherResult
-catch (YComb body) args = catch body args
-catch (Catch body) args = catch body args
+catch (YComb _ body) args = catch body args
+catch (Catch _ body) args = catch body args
 
-normalise :: Term -> Term
-normalise num@(Numeral _) = num
-normalise err@(Error _) = err
-normalise var@(Variable _) = var
-normalise (Lambda label typ body) = Lambda label typ (normalise body)
-normalise (Apply lhs rhs) = do
+normalise :: Term info -> Term info
+normalise num@(Numeral {}) = num
+normalise err@(Error {}) = err
+normalise var@(Variable {}) = var
+normalise (Lambda inf label typ body) = Lambda inf label typ (normalise body)
+normalise (Apply inf lhs rhs) = do
   let lReduced = normalise lhs
   let rReduced = normalise rhs
   case lReduced of
-    (Lambda label _ body) -> substitute label rReduced body
-    _ -> Apply lReduced rReduced
-normalise (Succ term) = Succ $ normalise term
-normalise (Pred term) = Pred $ normalise term
-normalise (If0 cond tt ff) = If0 (normalise cond) (normalise tt) (normalise ff)
-normalise (Catch body) = Catch (normalise body)
-normalise (YComb body) = YComb (normalise body)
+    (Lambda _ label _ body) -> substitute label rReduced body
+    _ -> Apply inf lReduced rReduced
+normalise (Succ inf term) = Succ inf $ normalise term
+normalise (Pred inf term) = Pred inf $ normalise term
+normalise (If0 inf cond tt ff) = If0 inf (normalise cond) (normalise tt) (normalise ff)
+normalise (Catch inf body) = Catch inf (normalise body)
+normalise (YComb inf body) = YComb inf (normalise body)
 
-substitute :: Label -> Term -> Term -> Term
+substitute :: Label -> Term info -> Term info -> Term info
 substitute _ _ literal@Numeral {} = literal
-substitute old new var@(Variable label)
+substitute old new var@(Variable _ label)
   | label == old = new
   | otherwise = var
-substitute old new abst@(Lambda label t body)
+substitute old new abst@(Lambda inf label t body)
   | label == old = abst
   | otherwise =
       let freshVar = fresh (used new ++ used body ++ [old, label])
-       in Lambda freshVar t (substitute old new (rename label freshVar body))
-substitute old new (Apply lhs rhs) =
-  Apply (substitute old new lhs) (substitute old new rhs)
-substitute old new (Succ body) = Succ (substitute old new body)
-substitute old new (Pred body) = Pred (substitute old new body)
-substitute old new (If0 cond iftrue iffalse) =
+       in Lambda inf freshVar t (substitute old new (rename label freshVar body))
+substitute old new (Apply inf lhs rhs) =
+  Apply inf (substitute old new lhs) (substitute old new rhs)
+substitute old new (Succ inf body) = Succ inf (substitute old new body)
+substitute old new (Pred inf body) = Pred inf (substitute old new body)
+substitute old new (If0 inf cond iftrue iffalse) =
   let sub = substitute old new
-   in (If0 (sub cond) (sub iftrue) (sub iffalse))
-substitute old new (YComb body) = YComb (substitute old new body)
-substitute _ _ err@(Error _) = err
-substitute old new (Catch body) = Catch (substitute old new body)
+   in (If0 inf (sub cond) (sub iftrue) (sub iffalse))
+substitute old new (YComb inf body) = YComb inf (substitute old new body)
+substitute _ _ err@(Error {}) = err
+substitute old new (Catch inf body) = Catch inf (substitute old new body)
 
-rename :: Label -> Label -> Term -> Term
-rename _ _ literal@(Numeral _) = literal
-rename old new var@(Variable label)
-  | label == old = Variable new
+rename :: Label -> Label -> Term info -> Term info
+rename _ _ literal@(Numeral {}) = literal
+rename old new var@(Variable inf label)
+  | label == old = Variable inf new
   | otherwise = var
-rename old new abst@(Lambda label t body)
+rename old new abst@(Lambda inf label t body)
   | label == old = abst
-  | otherwise = Lambda label t (rename old new body)
-rename old new (Apply lhs rhs) = Apply (rename old new lhs) (rename old new rhs)
-rename old new (Succ body) = Succ (rename old new body)
-rename old new (Pred body) = Pred (rename old new body)
-rename old new (If0 cond iftrue iffalse) =
+  | otherwise = Lambda inf label t (rename old new body)
+rename old new (Apply inf lhs rhs) = Apply inf (rename old new lhs) (rename old new rhs)
+rename old new (Succ inf body) = Succ inf (rename old new body)
+rename old new (Pred inf body) = Pred inf (rename old new body)
+rename old new (If0 inf cond iftrue iffalse) =
   let r = rename old new
-   in If0 (r cond) (r iftrue) (r iffalse)
-rename old new (YComb body) = YComb (rename old new body)
-rename _ _ err@(Error _) = err
-rename old new (Catch body) = Catch (rename old new body)
+   in If0 inf (r cond) (r iftrue) (r iffalse)
+rename old new (YComb inf body) = YComb inf (rename old new body)
+rename _ _ err@(Error {}) = err
+rename old new (Catch inf body) = Catch inf (rename old new body)
 
 fresh :: [Label] -> Label
 fresh usedLabels = case (find (`notElem` usedLabels) labels) of
   Just label -> label
   Nothing -> error "Error, somehow all variable names have been used. This shouldn't be possible."
 
-used :: Term -> [Label]
-used (Numeral _) = []
-used (Variable label) = [label]
-used (Lambda label _ term) = label : used term
-used (Apply lhs rhs) = used lhs ++ used rhs
-used (Succ body) = used body
-used (Pred body) = used body
-used (If0 cond iftrue iffalse) = used cond ++ used iftrue ++ used iffalse
-used (YComb body) = used body
-used (Error _) = []
-used (Catch term) = used term
+used :: Term info -> [Label]
+used (Numeral _ _) = []
+used (Variable _ label) = [label]
+used (Lambda _ label _ term) = label : used term
+used (Apply _ lhs rhs) = used lhs ++ used rhs
+used (Succ _ body) = used body
+used (Pred _ body) = used body
+used (If0 _ cond iftrue iffalse) = used cond ++ used iftrue ++ used iffalse
+used (YComb _ body) = used body
+used (Error {}) = []
+used (Catch _ term) = used term
 
 labels :: [Label]
 labels = alphabetLazyList ++ alphaNumsLazyList
