@@ -1,0 +1,8 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Rabjohns
+    given-names: Jay
+title: "Building an SPCF Interpreter: The Elimination of Function Nesting"
+version: 0.0.1
+date-released: 2024-05-03
