@@ -21,7 +21,7 @@ tests =
     [ -- SPCFHelpersSpec.tests,
       -- SPCFSpec.tests
       -- BoundedSPCFSpec.tests,
-      -- ProductSpec.tests,
+      ProductSpec.tests,
+      BoundedSPCFTypesSpec.tests,
       BoundedASPCFFragmentSpec.tests
-      -- BoundedSPCFTypesSpec.tests
     ]

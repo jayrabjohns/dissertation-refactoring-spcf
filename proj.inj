@@ -151,3 +151,24 @@ Case <Catch (\"p". \"i". Case <i, p>),
 
 
 E[Inj f] = <1, <(\"a". \"b". Case <b, <1, (I), (Case <1, a>)>>), (\"a". \"b". Case <b, <(I), 1, (Case <1, a>)>>), (\"a". \"b". Case <b, <(I), (Case <1, a>), 1>>)>>
+
+
+
+
+(\"f". Case <Succ (Catch f), 
+            <
+                <0, <(\"x". f <0, (Case <0, x>), (Case <1, x>), (Case <2, x>), (Case <3, x>)>),
+                    (\"x". f <(Case <0, x>), 0, (Case <1, x>), (Case <2, x>), (Case <3, x>)>),
+                    (\"x". f <(Case <0, x>), (Case <1, x>), 0, (Case <2, x>), (Case <3, x>)>),
+                    (\"x". f <(Case <0, x>), (Case <1, x>), (Case <2, x>), 0, (Case <3, x>)>),
+                    (\"x". f <(Case <0, x>), (Case <1, x>), (Case <2, x>), (Case <3, x>), 0>)>
+                >,
+                <1, <(\"x". f <1, (Case <0, x>), (Case <1, x>), (Case <2, x>), (Case <3, x>)>),
+                    (\"x". f <(Case <0, x>), 1, (Case <1, x>), (Case <2, x>), (Case <3, x>)>),
+                    (\"x". f <(Case <0, x>), (Case <1, x>), 1, (Case <2, x>), (Case <3, x>)>),
+                    (\"x". f <(Case <0, x>), (Case <1, x>), (Case <2, x>), 1, (Case <3, x>)>),
+                    (\"x". f <(Case <0, x>), (Case <1, x>), (Case <2, x>), (Case <3, x>), 1>)>
+                >
+            >
+        >
+)[\"p". \"i". Case <i, p>/"f"]

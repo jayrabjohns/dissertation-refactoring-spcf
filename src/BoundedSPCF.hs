@@ -1,4 +1,4 @@
-module BoundedSPCF (Term (..), Type (..), Value (..), Label, Environment, Numeral, Product, Eval, emptyEnv, emptyProduct, projection, insertProduct, removeProduct, numerals, upperBound, eval, normalise, interpret, interpretIO, substitute, runEval, runEvalIO) where
+module BoundedSPCF (Term (..), Type(..), Value (..), Label, Environment, Numeral, Product, Eval, emptyEnv, emptyProduct, projection, insertProduct, removeProduct, numerals, upperBound, eval, normalise, interpret, interpretIO, substitute, runEval, runEvalIO) where
 
 import Control.Monad.Except
 import Control.Monad.Identity
@@ -7,7 +7,6 @@ import Control.Monad.Writer
 import Data.List
 import qualified Data.Map as Map
 import qualified Data.Map.Internal.Debug as Map.Debug
-import Debug.Trace
 
 type Label = String
 
@@ -81,22 +80,40 @@ instance Show Term where
 
 data Type
   = Base -- Base type (numerals)
-  | Empty
-  | (:->) Type Type
-  | Unit
-  | Cross Type Type
+  | Empty -- Non-terminating function
+  | (:->) Type Type -- Procedure
+  | Unit -- Type of the empty product
+  | Cross Type Type -- Binary product
   deriving (Eq)
+
+-- When constructing types with :-> we typically want them to associate right
+-- o -> o -> o == o -> (o -> o) 
+-- rather than
+-- o -> o -> o == (o -> o) -> o
+infixr 5 :->
+
+-- instance Eq Type where
+--   (==) = equal 
+--     where 
+--       equal :: Type -> Type -> Bool
+--       equal Base Base = True
+--       equal Empty Empty = True
+--       equal Unit Unit = True
+--       equal (t1 :-> t2) (t3 :-> t4) = (equal t1 t3) && (equal t2 t4)
+--       equal (t1 `Cross` t2) (t3 `Cross` t4) = (equal t1 t3) && (equal t2 t4)
+--       equal _ _ = False
+  
 
 instance Show Type where
   show = beautify 0
     where
       beautify :: Int -> Type -> String
-      beautify i Base = "o"
-      beautify i (Base :-> rhs) = "o -> " ++ beautify 0 rhs
-      beautify i (lhs :-> rhs) = beautify 0 lhs ++ " -> " ++ beautify 0 rhs
+      beautify _ Base = "o"
+      beautify _ (Base :-> rhs) = "o -> " ++ beautify 0 rhs
+      beautify _ (lhs :-> rhs) = beautify 0 lhs ++ " -> " ++ beautify 0 rhs
       beautify i (Cross lhs rhs) = if i == 0 then "(" ++ s ++ ")" else s where s = beautify 1 lhs ++ "x" ++ beautify 1 rhs
-      beautify i Unit = "()"
-      beautify i Empty = "0"
+      beautify _ Unit = "()"
+      beautify _ Empty = "0"
 
 -- A mapping of identifiers (labels) to closures. The closure to which an
 --   environment E maps an identifier x is normally denoted by E[x].
@@ -130,7 +147,7 @@ instance Show Value where
 type Eval a = (ReaderT Environment (ExceptT String (WriterT [String] Identity))) a
 
 runEval :: Eval a -> Environment -> (Either String a, [String])
-runEval evl env = runIdentity . runWriterT . runExceptT $ runReaderT evl env
+runEval evalA env = runIdentity . runWriterT . runExceptT $ runReaderT evalA env
 
 runEvalIO :: Eval a -> Environment -> IO a
 runEvalIO evaluation env = do
