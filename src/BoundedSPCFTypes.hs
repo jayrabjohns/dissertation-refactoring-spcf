@@ -12,6 +12,9 @@ emptyContext = Map.empty
 
 type Judgement a = (ReaderT Context Identity) a
 
+typeof' :: Term -> Type
+typeof' term = runJudgement (typeof term) emptyContext
+
 runJudgement :: Judgement a -> Context -> a
 runJudgement judgement context = runIdentity $ runReaderT judgement context
 
@@ -31,9 +34,10 @@ typeof (Apply l r) = do
   lType <- typeof l
   rType <- typeof r
   case lType of
-    x :-> _ -> if x == rType 
-      then return rType 
-      else error $ "lhs " ++ show x ++ " cannot be applied with rhs " ++ show rType
+    x :-> _ ->
+      if x == rType
+        then return rType
+        else error $ "lhs " ++ show x ++ " cannot be applied with rhs " ++ show rType
     _ -> error ""
 typeof (Succ body) = typeof body
 -- typeof (Product (fstT : sndT : xs)) = do
@@ -48,18 +52,18 @@ typeof (Product terms) = do
   let allTypesAreEqual = and $ map (== head types) (tail types)
   if allTypesAreEqual
     then return $ foldl1 Cross types
-    else error "Elements of a product must all be the same type." 
+    else error "Elements of a product must all be the same type."
 -- return $ foldl' (Cross) (Cross fstType sndType) types
 -- typeof p@(Product _) = error $ "Error, cannot construct a product with fewer than 2 elements\n" ++ show p
 typeof (Case n p) = do
   numType <- typeof n
   prodType <- typeof p
-  case (numType, prodType) of 
+  case (numType, prodType) of
     (Base, (Cross _ elemType)) -> return $ elemType
     (wrongType, (Cross {})) -> error $ "the term Case<T1, T2> must have a Base type in place of T1, instead it is a " ++ show wrongType
     (_, wrongType) -> error $ "the term Case<T1, T2> must have a Cross type in place of T2, instead it is a " ++ show wrongType
-typeof (Catch body) = do 
-  bodyType <- typeof body 
-  case bodyType of 
+typeof (Catch body) = do
+  bodyType <- typeof body
+  case bodyType of
     (:->) _ _ -> return Base
     wrongType -> error $ "Catch is defined on types of the form T1 :-> T2 :-> ..., but instead it was given the type " ++ show wrongType
