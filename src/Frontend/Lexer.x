@@ -31,6 +31,8 @@ tokens :-
   Nat                           { lex' TokenNatTy }
   true                          { lex' $ TokenBool True }
   false                         { lex' $ TokenBool False }
+  error1                        { lex' TokenError1 }
+  error2                        { lex' TokenError2 }
   succ                          { lex' TokenSucc }
   pred                          { lex' TokenPred }
   catch                         { lex' TokenCatch }
@@ -80,6 +82,8 @@ data TokenClass =
   | TokenArrow
   | TokenDoubleArrow
   | TokenBool Bool
+  | TokenError1
+  | TokenError2
   | TokenNat Int
   | TokenEq
   | TokenSucc
@@ -108,6 +112,8 @@ unLex TokenArrow           = "->"
 unLex TokenDoubleArrow     = "=>"
 unLex (TokenBool b)        = show b
 unLex (TokenNat i)         = show i
+unLex TokenError1          = "error1"
+unLex TokenError2          = "error2"
 unLex TokenEq              = "="
 unLex TokenSucc            = "succ"
 unLex TokenPred            = "pred"

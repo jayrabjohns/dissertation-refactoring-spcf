@@ -23,6 +23,8 @@ import SPCF -- (Term(..), Type(..), Label, termInfo)
   nat          { Token $$ TokenNatTy }
   true         { Token $$ (TokenBool True) }
   false        { Token $$ (TokenBool False) }
+  error1       { Token $$ TokenError1 }
+  error2       { Token $$ TokenError2 }
   natVal       { Token _ (TokenNat _) }
   succ         { Token $$ TokenSucc }
   pred         { Token $$ TokenPred }
@@ -94,6 +96,8 @@ ATerm :
       Token fi (TokenNat n) ->
         SPCF.Numeral fi n }
         --foldr (\_ acc -> SPCF.Succ fi acc) (SPCF.Numeral fi 0) [1..n] }
+  | error1 { SPCF.Error $1 SPCF.Error1 }
+  | error2 { SPCF.Error $1 SPCF.Error2 }
   | id {
     case $1 of
       Token fi (TokenId id) ->
