@@ -1,14 +1,19 @@
-x = error1;
-y = error2;
-
 addLeftTerm = \f:Nat->Nat->Nat => \x:Nat => \y:Nat => if x then y else (succ (f (pred x) y));
 addRightTerm = \f:Nat->Nat->Nat => \x:Nat => \y:Nat => if y then x else (succ (f x (pred y)));
 
 add = \x:Nat => \y:Nat => (fix addLeftTerm) x y;
 add' = \x:Nat => \y:Nat => (fix addRightTerm) x y;
 
+
+x = 5;
+y = 3;
+
 eval (add x y);
 
+w = add x y;
+eval (w);
+
+eval (add error1 error2);
 eval (
-    add' x y
+    add' error1 error2
 );

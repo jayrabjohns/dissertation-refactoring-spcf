@@ -1,13 +1,11 @@
-{-# LANGUAGE DeriveFunctor #-}
+module SPCF where
 
-module SPCF where -- (Term (..), Error (..), Type (..), Value (..), Label, Environment, termInfo, emptyEnv, eval, interpret, interpretIO, substitute, runEval, runEvalIO) where
-
-import Control.Monad.State
-import Control.Monad.Except
-import Control.Monad.Identity
-import Control.Monad.Reader
-import Control.Monad.Writer
-import Data.List
+import Control.Monad.Except (ExceptT, MonadError (throwError), runExceptT)
+import Control.Monad.Identity (Identity (runIdentity))
+import Control.Monad.Reader (MonadReader (ask, local), ReaderT (runReaderT))
+import Control.Monad.State (MonadState (get, put), State, evalState)
+import Control.Monad.Writer (MonadWriter (tell), WriterT (runWriterT))
+import Data.List (elemIndex, find)
 import qualified Data.Map as Map
 import qualified Data.Map.Internal.Debug as Map.Debug
 
@@ -24,7 +22,7 @@ data Term info
   | If0 info (Term info) (Term info) (Term info)
   | Error info Error
   | Catch info (Term info)
-  deriving (Eq, Functor)
+  deriving (Eq)
 
 termInfo :: Term info -> info
 termInfo (Numeral inf _) = inf
@@ -38,71 +36,41 @@ termInfo (YComb inf _) = inf
 termInfo (Error inf _) = inf
 termInfo (Catch inf _) = inf
 
-data Command info
-  = CBind info Label (Term info)
-  | CEval info (Term info)
-  deriving (Eq, Functor)
+data Statement info
+  = Declare info Label (Term info)
+  | Evaluate info (Term info)
 
 data Prog info = Prog
   { pinfo_of :: info,
-    prog_of :: [Command info]
+    prog_of :: [Statement info]
   }
-  deriving (Eq, Functor)
 
-type CommandResult info = Either String (Term info)
+type Result a = Either String a
 
-initState = (emptyEnv, [])
+type EvalMany a = State (Environment a) [Result a]
 
-interpProg :: Prog info -> [CommandResult info]
-interpProg = (`evalState` initState) . interpCommands . prog_of
+interpProg :: Prog info -> [Result (Term info)]
+interpProg = (`evalState` emptyEnv) . interpretStatements . prog_of
 
-type InterpState info = (Environment (Term info), [CommandResult info])
-interpCommands :: [Command info] -> State (InterpState info) [CommandResult info]
-interpCommands [] = do
-  (_, results) <- get
-  return results
-interpCommands (command : cs) = do
-  (env, results) <- get
-  put $ case command of 
-        (CBind _ label term) -> 
-          let updatedEnv = Map.insert label term env 
-          in (updatedEnv, results)
-        (CEval _ term) -> do
-          let result = fst $ runEval (eval term) env
-          (env, results ++ [result])
-  interpCommands cs
-  -- let res = interpCommand env command
-  -- put $ case res of
-  --   Left (label, term) -> (Map.insert label (substEnv env term) env, results ++ [res])
-  --   Right _ -> (env, results ++ [res])
-  -- interpCommands cs
+interpretStatements :: [Statement info] -> EvalMany (Term info)
+interpretStatements statements = do
+  results <- traverse interpretStatement statements
+  return $ concat results
 
--- interpCommand :: Environment (Term info) -> Command info -> Either (Label, Term info) (Term info)
--- interpCommand _ (CBind fi id t) = Left (id, t)
--- interpCommand env (CEval fi t) =
---   Right (eval (fold (\acc k v -> termSubst k v acc) t env))
-
--- substEnv :: Environment (Term info) -> Term info -> Term info
--- substEnv env term =
---   -- fold (\acc k v -> termSubst k v acc) t env
---     foldl (\acc label ->
---             case Map.lookup id env of
---               Just v  -> substitute label v acc
---               Nothing -> error "free variable not bound in environment")
---     term (freeVars term)
+interpretStatement :: Statement info -> EvalMany (Term info)
+interpretStatement (Declare _ label term) = do
+  env <- get
+  put $ Map.insert label term env
+  return []
+interpretStatement (Evaluate _ term) = do
+  env <- get
+  let evalResult = fst $ runEval (eval term) env
+  return [evalResult]
 
 data Error
   = Error1
   | Error2
   deriving (Eq, Show)
-
--- instance Num (Term info) where
---   fromInteger = (Numeral info) . fromIntegral
---   (+) = undefined
---   (*) = undefined
---   abs = undefined
---   signum = undefined
---   negate = undefined
 
 instance Show (Term info) where
   show = beautify 0

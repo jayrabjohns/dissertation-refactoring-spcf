@@ -3,19 +3,11 @@
 
 {
 {-# OPTIONS -w  #-}
-module Frontend.Lexer
-  ( Token(..)
-  , AlexPosn(..)
-  , TokenClass(..)
-  , unLex
-  , Alex(..)
-  , runAlex'
-  , alexMonadScan'
-  , alexError'
-  ) where
-import Prelude hiding (lex)
+module Frontend.Lexer where
+
+import Control.Monad (liftM)
 import Data.Char (chr)
-import Control.Monad ( liftM )
+import Prelude hiding (lex)
 import SPCF (Label)
 }
 %wrapper "monadUserState"
@@ -68,7 +60,7 @@ setFilePath = alexSetUserState . AlexUserState
 
 -- The token type, consisting of the source code position and a token class.
 data Token = Token AlexPosn TokenClass
-  deriving ( Show )
+  deriving (Show)
 
 data TokenClass =
   TokenId Label
@@ -96,7 +88,7 @@ data TokenClass =
   | TokenElse
   | TokenEval
   | TokenEOF
-    deriving (Eq,Show)
+    deriving (Eq, Show)
 
 -- For nice parser error messages.
 unLex :: TokenClass -> String

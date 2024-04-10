@@ -4,10 +4,10 @@
 
 {
 {-# OPTIONS -w #-}
-module Frontend.Parser( parseProg ) where
+module Frontend.Parser(parseProg) where
 
 import Frontend.Lexer
-import SPCF -- (Term(..), Type(..), Label, termInfo)
+import SPCF (Statement(..), Error(..), Label, Prog(..), Term(..), Type(..), termInfo)
 }
 
 %name parse
@@ -57,7 +57,7 @@ import SPCF -- (Term(..), Type(..), Label, termInfo)
 %%
 
 Prog :
-  Commands { SPCF.Prog { SPCF.pinfo_of = AlexPn 0 0 0, SPCF.prog_of = $1 } }
+  Statements { SPCF.Prog { SPCF.pinfo_of = AlexPn 0 0 0, SPCF.prog_of = $1 } }
 
 -- Atomic types
 AType :
@@ -78,7 +78,6 @@ Term :
     case $2 of
       Token _ (TokenId id) ->
         SPCF.Lambda $1 id $3 $5 }
-  -- | Term Term %prec APP    { Ast.TmApp () $1 $2 }
 
 AppTerm :
   ATerm { $1 }
@@ -93,22 +92,21 @@ ATerm :
   '(' Term ')' { $2 }
   | natVal {
     case $1 of
-      Token fi (TokenNat n) ->
-        SPCF.Numeral fi n }
-        --foldr (\_ acc -> SPCF.Succ fi acc) (SPCF.Numeral fi 0) [1..n] }
+      Token info (TokenNat n) ->
+        SPCF.Numeral info n }
   | error1 { SPCF.Error $1 SPCF.Error1 }
   | error2 { SPCF.Error $1 SPCF.Error2 }
   | id {
     case $1 of
-      Token fi (TokenId id) ->
-        SPCF.Variable fi id }
+      Token info (TokenId id) ->
+        SPCF.Variable info id }
 
-Command :
+Statement :
   id Binder {
     case $1 of
-      Token fi (TokenId id) ->
-        SPCF.CBind fi id $2 }
-  | eval Term { SPCF.CEval $1 $2 }
+      Token info (TokenId id) ->
+        SPCF.Declare info id $2 }
+  | eval Term { SPCF.Evaluate $1 $2 }
 
 TyBinder :
   ':' Type { $2 }
@@ -116,10 +114,9 @@ TyBinder :
 Binder :
   '=' Term { $2 }
 
-Commands :
-  Commands ';' Commands { $1 ++ $3 }
-  -- | Commands ';' { $1 }
-  | Command { [$1] }
+Statements :
+  Statements ';' Statements { $1 ++ $3 }
+  | Statement { [$1] }
   | {- empty -} { [] }
 
 {

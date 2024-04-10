@@ -11,19 +11,21 @@ import System.Environment (getArgs)
 main :: IO ()
 main = do
   args <- getArgs
-  let filepath = (case args of
-        [] -> error "Error: no input file"
-        [f] -> f
-        _ -> error "expected max. 1 argument")
+  let filepath =
+        ( case args of
+            [] -> error "Error: no input file"
+            [f] -> f
+            _ -> error "expected max. 1 argument"
+        )
   src <- readFile filepath
   program <- either fail return (parseProg filepath src)
   let results = interpProg program
   _ <- traverse (print . showResult) results
   return ()
 
-showResult :: CommandResult info -> String
+showResult :: Result (Term info) -> String
 showResult (Left err) = "Error: " ++ err
-showResult (Right term) = show term 
+showResult (Right term) = show term
 
 -- main :: IO ()
 -- main = do
