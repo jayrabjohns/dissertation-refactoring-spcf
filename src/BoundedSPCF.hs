@@ -1,10 +1,10 @@
-module BoundedSPCF (Term (..), Type(..), Value (..), Label, Environment, Numeral, Product, Eval, emptyEnv, emptyProduct, projection, insertProduct, removeProduct, numerals, upperBound, eval, normalise, interpret, interpretIO, substitute, runEval, runEvalIO) where
+module BoundedSPCF where
 
-import Control.Monad.Except
-import Control.Monad.Identity
-import Control.Monad.Reader
-import Control.Monad.Writer
-import Data.List
+import Control.Monad.Except (ExceptT, MonadError (throwError), runExceptT)
+import Control.Monad.Identity (Identity (runIdentity))
+import Control.Monad.Reader (MonadReader (ask, local), ReaderT (runReaderT))
+import Control.Monad.Writer (MonadWriter (tell), WriterT (runWriterT))
+import Data.List (elemIndex, find, genericIndex, intercalate, splitAt)
 import qualified Data.Map as Map
 import qualified Data.Map.Internal.Debug as Map.Debug
 
@@ -69,7 +69,7 @@ instance Show Term where
       beautify :: Int -> Term -> String
       beautify _ (Numeral i) = show i
       beautify _ (Variable x) = x
-      beautify i (Lambda var _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "\\" ++ show var ++ {-": " ++ show t ++ -} ". " ++ beautify 0 term
+      beautify i (Lambda var t term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "\\" ++ var ++ ":" ++ show t ++ " => " ++ beautify 0 term
       beautify i (Apply lhs@(Lambda label _ _) rhs) = if i == 2 then "(" ++ s ++ ")" else s where s = beautify 2 lhs ++ "[" ++ show rhs ++ "/" ++ show label ++ "]" -- beautify 1 lhs ++ " " ++ beautify 2 rhs
       beautify i (Apply lhs rhs) = if i == 2 then "(" ++ s ++ ")" else s where s = beautify 1 lhs ++ " " ++ beautify 2 rhs
       beautify i (Succ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Succ " ++ beautify 2 term
@@ -79,7 +79,7 @@ instance Show Term where
       beautify i (Catch term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Catch " ++ beautify 2 term
 
 data Type
-  = Base -- Base type (numerals)
+  = Nat -- Base type (numerals)
   | Empty -- Non-terminating function
   | (:->) Type Type -- Procedure
   | Unit -- Type of the empty product
@@ -92,25 +92,13 @@ data Type
 -- o -> o -> o == (o -> o) -> o
 infixr 5 :->
 
--- instance Eq Type where
---   (==) = equal 
---     where 
---       equal :: Type -> Type -> Bool
---       equal Base Base = True
---       equal Empty Empty = True
---       equal Unit Unit = True
---       equal (t1 :-> t2) (t3 :-> t4) = (equal t1 t3) && (equal t2 t4)
---       equal (t1 `Cross` t2) (t3 `Cross` t4) = (equal t1 t3) && (equal t2 t4)
---       equal _ _ = False
-  
-
 instance Show Type where
   show = beautify 0
     where
       beautify :: Int -> Type -> String
-      beautify _ Base = "o"
-      beautify _ (Base :-> rhs) = "o -> " ++ beautify 0 rhs
-      beautify _ (lhs :-> rhs) = beautify 0 lhs ++ " -> " ++ beautify 0 rhs
+      beautify _ Nat = "Nat"
+      beautify _ (Nat :-> rhs) = "Nat->" ++ beautify 0 rhs
+      beautify i (lhs :-> rhs) = if i == 0 then "(" ++ beautify 1 lhs ++ ")" ++ "->" ++ beautify 1 rhs else beautify 0 lhs ++ "->" ++ beautify 1 rhs
       beautify i (Cross lhs rhs) = if i == 0 then "(" ++ s ++ ")" else s where s = beautify 1 lhs ++ "x" ++ beautify 1 rhs
       beautify _ Unit = "()"
       beautify _ Empty = "0"
@@ -125,25 +113,6 @@ emptyEnv = Map.empty
 showEnv :: Environment -> String
 showEnv env = Map.Debug.showTreeWith (\k v -> show (k, v)) True False env
 
--- The result of evaluation of a closure.
---   Either a natural number or another closure.
-data Value
-  = Nat Int
-  | Closure Environment Term
-  deriving (Eq)
-
-termToValue :: Eval Term -> Eval Value
-termToValue evaluation = do
-  result <- evaluation
-  env <- ask
-  return $ case result of
-    Numeral i -> Nat i
-    term -> Closure env term
-
-instance Show Value where
-  show (Nat i) = show i
-  show (Closure env term) = "Closure (" ++ show term ++ ") (" ++ show env ++ ")"
-
 type Eval a = (ReaderT Environment (ExceptT String (WriterT [String] Identity))) a
 
 runEval :: Eval a -> Environment -> (Either String a, [String])
@@ -155,11 +124,11 @@ runEvalIO evaluation env = do
   _ <- traverse putStrLn logs
   either fail return result
 
-interpret :: Term -> Either String Value
-interpret term = fst $ runEval (termToValue $ eval term) emptyEnv
+interpret :: Term -> Either String Term
+interpret term = fst $ runEval (eval term) emptyEnv
 
-interpretIO :: Term -> IO Value
-interpretIO term = runEvalIO (termToValue $ eval term) emptyEnv
+interpretIO :: Term -> IO Term
+interpretIO term = runEvalIO (eval term) emptyEnv
 
 -- Evaluation is commonly denoted by ⇓ and is sort of a decomposition of a
 --   closure (a redex and an evaluation context) into a value.
@@ -350,23 +319,6 @@ substitute old new (Product prod) = Product $ map (substitute old new) prod
 substitute old new (Case n body) =
   Case (substitute old new n) (substitute old new body)
 substitute old new (Catch body) = Catch (substitute old new body)
-
--- substitute :: Label -> Term -> Term -> Term
--- substitute _ _ literal@Numeral {} = literal
--- substitute old new var@(Variable label)
---   | label == old = new
---   | otherwise = var
--- substitute old new abst@(Lambda label t body)
---   | label == old = abst
---   | otherwise =
---       let freshVar = fresh (used new ++ used body ++ [old, label])
---        in Lambda freshVar t (substitute old new (rename label freshVar body))
--- substitute old new (Apply lhs rhs) =
---   Apply (substitute old new lhs) (substitute old new rhs)
--- substitute old new (Product prod) = Product $ map (substitute old new) prod
--- substitute old new (Case n body) =
---   Case (substitute old new n) (substitute old new body)
--- substitute old new (Catch body) = Catch (substitute old new body)
 
 rename :: Label -> Label -> Term -> Term
 rename _ _ literal@(Numeral _) = literal

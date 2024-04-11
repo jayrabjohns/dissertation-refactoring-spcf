@@ -13,7 +13,7 @@ tests =
 
 evalCase :: Test
 evalCase = do
-  let f = Lambda "p" (Base `Cross` Base `Cross` Base) $ Lambda "i" Base $ Case (Variable "i") (Variable "p")
+  let f = Lambda "p" (Nat `Cross` Nat `Cross` Nat) $ Lambda "i" Nat $ Case (Variable "i") (Variable "p")
   let p = Product [Numeral 1, Numeral 2, Numeral 3]
   let i = Numeral 3
   let term = Apply (Apply f p) i
@@ -24,7 +24,7 @@ evalCase = do
 
 evalCase0 :: Test
 evalCase0 = do
-  let f = Lambda "p" (Base `Cross` Base `Cross` Base) $ Lambda "i" Base $ Case (Variable "i") (Variable "p")
+  let f = Lambda "p" (Nat `Cross` Nat `Cross` Nat) $ Lambda "i" Nat $ Case (Variable "i") (Variable "p")
   let p = Product [Numeral 1, Numeral 2, Numeral 3]
   let i = Numeral 0
   let term = Apply (Apply f p) i
@@ -35,7 +35,7 @@ evalCase0 = do
 -- Using the strictness index of a function as the index of a case statement
 evalCaseWithCatchAsNumeral :: Test
 evalCaseWithCatchAsNumeral = do
-  let f = Lambda "x" Base $ Lambda "y" Base $ Variable "x"
+  let f = Lambda "x" Nat $ Lambda "y" Nat $ Variable "x"
   let prod = Product $ map Numeral [0 .. 5]
   let strictIndex = Succ $ Catch f
   let term = Case strictIndex prod

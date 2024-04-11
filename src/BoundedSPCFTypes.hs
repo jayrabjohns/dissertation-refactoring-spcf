@@ -1,8 +1,8 @@
 module BoundedSPCFTypes where
 
-import BoundedSPCF
-import Control.Monad.Identity
-import Control.Monad.Reader
+import BoundedSPCF (Label, Term (..), Type (..))
+import Control.Monad.Identity (Identity (runIdentity))
+import Control.Monad.Reader (MonadReader (ask, local), ReaderT (runReaderT))
 import qualified Data.Map as Map
 
 type Context = Map.Map Label Type
@@ -19,7 +19,7 @@ runJudgement :: Judgement a -> Context -> a
 runJudgement judgement context = runIdentity $ runReaderT judgement context
 
 typeof :: Term -> Judgement Type
-typeof (Numeral _) = return Base
+typeof (Numeral _) = return Nat
 typeof (Variable label) = do
   context <- ask
   case Map.lookup label context of
@@ -40,12 +40,6 @@ typeof (Apply l r) = do
         else error $ "lhs " ++ show x ++ " cannot be applied with rhs " ++ show rType
     _ -> error ""
 typeof (Succ body) = typeof body
--- typeof (Product (fstT : sndT : xs)) = do
--- types <- traverse typeof xs
--- fstType <- typeof fstT
--- sndType <- typeof sndT
--- return do $
--- return $ foldl' (Cross) (Cross fstType sndType) types
 typeof (Product []) = return Unit
 typeof (Product terms) = do
   types <- traverse typeof terms
@@ -59,11 +53,11 @@ typeof (Case n p) = do
   numType <- typeof n
   prodType <- typeof p
   case (numType, prodType) of
-    (Base, (Cross _ elemType)) -> return $ elemType
+    (Nat, (Cross _ elemType)) -> return $ elemType
     (wrongType, (Cross {})) -> error $ "the term Case<T1, T2> must have a Base type in place of T1, instead it is a " ++ show wrongType
     (_, wrongType) -> error $ "the term Case<T1, T2> must have a Cross type in place of T2, instead it is a " ++ show wrongType
 typeof (Catch body) = do
   bodyType <- typeof body
   case bodyType of
-    (:->) _ _ -> return Base
+    (:->) _ _ -> return Nat
     wrongType -> error $ "Catch is defined on types of the form T1 :-> T2 :-> ..., but instead it was given the type " ++ show wrongType
