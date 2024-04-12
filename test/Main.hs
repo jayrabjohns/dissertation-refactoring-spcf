@@ -3,8 +3,8 @@ module Main (main) where
 import qualified BoundedASPCFFragmentSpec
 import qualified BoundedSPCFSpec
 import qualified BoundedSPCFTypesSpec
--- import qualified SPCFSpec
 import qualified ProductSpec
+import qualified SPCFSpec
 import qualified System.Exit as Exit
 import Test.HUnit
 
@@ -18,10 +18,9 @@ main = do
 tests :: Test
 tests =
   TestList
-    [ -- SPCFHelpersSpec.tests,
-      -- SPCFSpec.tests
-      -- BoundedSPCFSpec.tests,
+    [ SPCFSpec.tests,
+      BoundedSPCFSpec.tests,
       ProductSpec.tests,
-      BoundedSPCFTypesSpec.tests,
-      BoundedASPCFFragmentSpec.tests
+      BoundedSPCFTypesSpec.tests
+      -- BoundedASPCFFragmentSpec.tests
     ]
