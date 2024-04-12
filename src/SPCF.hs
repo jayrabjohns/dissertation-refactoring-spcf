@@ -113,31 +113,7 @@ emptyEnv = Map.empty
 showEnv :: (Show a) => Environment a -> String
 showEnv env = Map.Debug.showTreeWith (\k v -> show (k, v)) True False env
 
--- The result of evaluation of a closure.
---   Either a natural number or another closure.
-data Value info
-  = Nat Int
-  | Err Error
-  | Closure (Environment (Term info)) (Term info)
-  deriving (Eq)
-
-instance Show (Value info) where
-  show (Nat i) = show i
-  show (Err err) = show err
-  show (Closure env term) = "Closure " ++ show env ++ show term
-
 type Eval a = (ReaderT (Environment a) (ExceptT String (WriterT [String] Identity))) a
-
--- termToValue :: Eval (Term info) -> Eval (Value info)
--- termToValue evaluation = do
---   result <- evaluation
---   undefined
-
--- env <- ask
--- return $ case result of
---   Numeral _ i -> Nat i
---   Error _ e -> Err e
---   term -> Closure env term
 
 runEval :: Eval a -> Environment a -> (Either String a, [String])
 runEval evl env = runIdentity . runWriterT . runExceptT $ runReaderT evl env
@@ -253,27 +229,28 @@ eval (YComb inf term) = do
     _ -> throwError "Error, it is only possible to take a fixed point of a lambda abstraction"
 -- Following Laird's definition of catch which has ground type rather than
 --   Cartwreight & Fallensien's family of t -> o typed operators.
--- Need a way to track the index of each argument. Perhaps store a special variable in the context?
--- The alternative would be either re-writing the eval function inside of the case for catch,
--- or passing in a special parameter counting the index / having a custom monad tracking hte same state
 eval (Catch inf body) = do
   env <- ask
   let usedLabels = Map.keys env
   case catch body usedLabels of
-    CaughtError err -> return $ Error inf err
-    Constant i n -> return $ Numeral inf (i + n)
+    Constant (Numeral _ i) n -> return $ Numeral inf (i + n)
+    Constant (Error _ _) n -> return $ Numeral inf n
+    Constant term _ ->
+      throwError $
+        "Catch has been implemented incorrectly, this case should not exist. "
+          ++ "It has returned the following term as a constant "
+          ++ show term
     ArgumentIndex i -> return $ Numeral inf i
     Diverge msg -> throwError msg
 
-data CatchResult
-  = Constant Int Int
-  | CaughtError Error
+data CatchResult info
+  = Constant (Term info) Int
   | ArgumentIndex Int
   | Diverge String
 
-catch :: Term info -> [Label] -> CatchResult
-catch (Numeral _ i) args = Constant i (length args)
-catch (Error _ err) _ = CaughtError err
+catch :: Term info -> [Label] -> CatchResult info
+catch i@(Numeral _ _) args = Constant i (length args)
+catch err@(Error _ _) args = Constant err (length args)
 catch (Variable _ label) args = case lastElemIndex label args of
   Just i -> ArgumentIndex i
   Nothing ->
@@ -291,8 +268,8 @@ catch (Succ _ body) args = catch body args
 catch (Pred _ body) args = catch body args
 catch (If0 _ predicate tt ff) args =
   case catch predicate args of
-    Constant 0 _ -> catch tt args
-    Constant {} -> catch ff args
+    Constant (Numeral _ 0) _ -> catch tt args
+    Constant (Numeral {}) _ -> catch ff args
     otherResult -> otherResult
 catch (YComb _ body) args = catch body args
 catch (Catch _ body) args = catch body args
