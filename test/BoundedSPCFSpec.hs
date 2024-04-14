@@ -15,7 +15,7 @@ evalCase :: Test
 evalCase = do
   let f = Lambda "p" (Nat `Cross` Nat `Cross` Nat) $ Lambda "i" Nat $ Case (Variable "i") (Variable "p")
   let p = Product [Numeral 1, Numeral 2, Numeral 3]
-  let i = Numeral 3
+  let i = Numeral 2
   let term = Apply (Apply f p) i
   let expectedResult = Numeral 3
   TestLabel
@@ -28,16 +28,17 @@ evalCase0 = do
   let p = Product [Numeral 1, Numeral 2, Numeral 3]
   let i = Numeral 0
   let term = Apply (Apply f p) i
+  let expectedResult = Numeral 1
   TestLabel
     "should evaluate to the emtpy product for (Case 0 p)"
-    $ assertEval term emptyEnv emptyProduct
+    $ assertEval term emptyEnv expectedResult
 
 -- Using the strictness index of a function as the index of a case statement
 evalCaseWithCatchAsNumeral :: Test
 evalCaseWithCatchAsNumeral = do
   let f = Lambda "x" Nat $ Lambda "y" Nat $ Variable "x"
   let prod = Product $ map Numeral [0 .. 5]
-  let strictIndex = Succ $ Catch f
+  let strictIndex = Catch f
   let term = Case strictIndex prod
   let expectedResult = Numeral 0
   TestLabel

@@ -20,8 +20,13 @@ emptyProduct = Product []
 -- A family of n projections πᵢ: Tⁿ => T
 -- π₀(t) = I where I is the empty product
 projection :: Term -> Int -> Term
-projection (Product _) 0 = emptyProduct
-projection (Product prod) i = Data.List.genericIndex prod (i - 1)
+projection (Product prod) i =
+  case drop i prod of
+    x : _ -> x
+    [] ->
+      error $
+        "Index out of range. Cannot access element at index "
+          ++ (show i ++ " of the product " ++ show prod)
 projection term i = Case (Numeral i) term
 
 -- projection term _ = error $ "Cannot project term " ++ show term
@@ -53,6 +58,7 @@ data Term
   | Product Product -- <- sneakily my injection, uses the list constructor to convert it to the underlying datastructre
   | Case Term Term -- <- my projection, uses the index function of the underlying list to return a term
   | Catch Term
+  | Bottom
   deriving (Eq)
 
 instance Num Term where
@@ -77,6 +83,7 @@ instance Show Term where
       beautify _ (Product prod) = "<" ++ (intercalate ", " (map (beautify 2) prod)) ++ ">"
       beautify i (Case numeral prod) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Case <" ++ beautify 0 numeral ++ ", " ++ beautify 0 prod ++ ">"
       beautify i (Catch term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Catch " ++ beautify 2 term
+      beautify _ Bottom = "⊥"
 
 data Type
   = Nat -- Base type (numerals)
@@ -87,7 +94,7 @@ data Type
   deriving (Eq)
 
 -- When constructing types with :-> we typically want them to associate right
--- o -> o -> o == o -> (o -> o) 
+-- o -> o -> o == o -> (o -> o)
 -- rather than
 -- o -> o -> o == (o -> o) -> o
 infixr 5 :->
@@ -97,8 +104,9 @@ instance Show Type where
     where
       beautify :: Int -> Type -> String
       beautify _ Nat = "Nat"
-      beautify _ (Nat :-> rhs) = "Nat->" ++ beautify 0 rhs
-      beautify i (lhs :-> rhs) = if i == 0 then "(" ++ beautify 1 lhs ++ ")" ++ "->" ++ beautify 1 rhs else beautify 0 lhs ++ "->" ++ beautify 1 rhs
+      -- beautify _ (Nat :-> rhs) = "Nat->" ++ beautify 0 rhs
+      -- beautify i (lhs :-> rhs) = if i == 1 then "(" ++ beautify 1 lhs ++ ")" ++ "->" ++ beautify 1 rhs else beautify 0 lhs ++ "->" ++ beautify 1 rhs
+      beautify i (lhs :-> rhs) = if i == 1 then "(" ++ s ++ ")" else s where s = beautify 1 lhs ++ "->" ++ beautify 0 rhs
       beautify i (Cross lhs rhs) = if i == 0 then "(" ++ s ++ ")" else s where s = beautify 1 lhs ++ "x" ++ beautify 1 rhs
       beautify _ Unit = "()"
       beautify _ Empty = "0"
@@ -118,11 +126,17 @@ type Eval a = (ReaderT Environment (ExceptT String (WriterT [String] Identity)))
 runEval :: Eval a -> Environment -> (Either String a, [String])
 runEval evalA env = runIdentity . runWriterT . runExceptT $ runReaderT evalA env
 
-runEvalIO :: Eval a -> Environment -> IO a
+runEvalIO :: (Show a) => Eval a -> Environment -> IO a
 runEvalIO evaluation env = do
-  let (result, logs) = runEval evaluation env
+  let (resultEither, logs) = runEval evaluation env
+  _ <- putStrLn ""
+  _ <- putStrLn "Starting new evaluation"
   _ <- traverse putStrLn logs
-  either fail return result
+  -- _ <- traverse (\(i, lg) -> putStrLn $ show i ++ " | " ++ lg) (zip [i | i <- [0 .. (length logs)]] logs)
+  result <- either fail return resultEither
+  _ <- putStrLn $ "Final result: " ++ show result
+  _ <- putStrLn ""
+  return result
 
 interpret :: Term -> Either String Term
 interpret term = fst $ runEval (eval term) emptyEnv
@@ -136,6 +150,7 @@ interpretIO term = runEvalIO (eval term) emptyEnv
 --   it will return a the beta reduced term along with the evaluation
 --   context up to that point.
 eval :: Term -> Eval Term
+eval Bottom = return Bottom
 eval (Numeral i) = return $ Numeral i
 eval (Variable label) = do
   env <- ask
@@ -172,17 +187,15 @@ eval (Apply lterm rterm) = do
     _ ->
       throwError $
         "Error while evaluating application - "
-          ++ "lhs of an application should always be an abstraction. "
-          ++ "Specifically, "
-          ++ show rterm
-          ++ " cannot be applied to "
-          ++ show lterm
+          ++ "the lhs of an application should always be an abstraction. "
+          ++ ("Specifically, " ++ show rterm)
+          ++ (" cannot be applied to " ++ show lterm)
 eval (Succ term) = do
   tell ["\nFind successor of " ++ show term]
   val <- eval term
   case val of
     Numeral i ->
-      if i < (upperBound - 1)
+      if i < (upperBound)
         then return $ Numeral (i + 1)
         else return $ Numeral i
     _ -> throwError $ "Cannot apply successor to non numeral" ++ show term
@@ -203,7 +216,7 @@ eval (Case num prod) = do
             ++ show proj
         ]
       eval proj
-    (Numeral 1, term) -> do
+    (Numeral 0, term) -> do
       tell
         [ show (Case num prod)
             ++ " <-> treat "
@@ -224,10 +237,19 @@ eval (Catch body) = do
   env <- ask
   let usedLabels = Map.keys env
   let catchResult = runCatch (catch body) usedLabels
-  case catchResult of
-    Constant i n -> return $ Numeral (i + n)
+  result <- case catchResult of
+    Constant (Numeral i) n -> return $ Numeral (i + n)
+    Constant Bottom _ -> return Bottom
+    Constant term _ ->
+      throwError $
+        "This case should not exist. "
+          ++ "Catch has returned the following term as a constant "
+          ++ show term
     ArgumentIndex i -> return $ Numeral i
     Diverge msg -> throwError msg
+
+  tell [show (Catch body) ++ " <-> term is strict at position " ++ show result]
+  return result
 
 type Catch a = ReaderT [Label] Identity a
 
@@ -235,7 +257,7 @@ runCatch :: Catch a -> [Label] -> a
 runCatch ctch args = runIdentity $ runReaderT ctch args
 
 data CatchResult
-  = Constant Int Int
+  = Constant Term Int
   | ArgumentIndex Int
   | Diverge String
 
@@ -249,7 +271,10 @@ data CatchResult
 -- It takes in a function that takes in a product and returns the empty type
 --   and returns a numeral (the argument index).
 catch :: Term -> Catch CatchResult
-catch (Numeral i) = do
+catch Bottom = do
+  args <- ask
+  return $ Constant Bottom (length args)
+catch i@(Numeral _) = do
   args <- ask
   return $ Constant i (length args)
 catch (Variable label) = do
@@ -289,6 +314,7 @@ catch (Case n prod) = do
 catch (Catch body) = catch body
 
 normalise :: Term -> Term
+normalise Bottom = Bottom
 normalise num@(Numeral _) = num
 normalise var@(Variable _) = var
 normalise (Lambda label typ body) = Lambda label typ (normalise body)
@@ -303,6 +329,7 @@ normalise (Case n prod) = Case (normalise n) (normalise prod)
 normalise (Catch body) = Catch (normalise body)
 
 substitute :: Label -> Term -> Term -> Term
+substitute _ _ Bottom = Bottom
 substitute _ _ literal@Numeral {} = literal
 substitute old new var@(Variable label)
   | label == old = new
@@ -321,6 +348,7 @@ substitute old new (Case n body) =
 substitute old new (Catch body) = Catch (substitute old new body)
 
 rename :: Label -> Label -> Term -> Term
+rename _ _ Bottom = Bottom
 rename _ _ literal@(Numeral _) = literal
 rename old new var@(Variable label)
   | label == old = Variable new
@@ -340,6 +368,7 @@ fresh usedLabels = case (find (`notElem` usedLabels) labels) of
   Nothing -> error "Error, somehow all variable names have been used. This shouldn't be possible."
 
 used :: Term -> [Label]
+used Bottom = []
 used (Numeral _) = []
 used (Variable label) = [label]
 used (Lambda label _ term) = label : used term
