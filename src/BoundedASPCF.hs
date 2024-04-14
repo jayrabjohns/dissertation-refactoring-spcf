@@ -33,7 +33,7 @@ injTerm ftype@((:->) (Cross xtype _) Empty) =
 
     -- The rest of the arguemnts for f which can be applied at a later time
     otherArgs :: Product
-    otherArgs = [projection (Variable "x") k | k <- [0 .. m]]
+    otherArgs = [projection (Variable "x") k | k <- [0 .. (productLength xtype) - 1]]
 
     -- f has m + 1 arguments,
     m :: Int

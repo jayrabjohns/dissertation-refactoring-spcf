@@ -4,7 +4,7 @@ import Control.Monad.Except (ExceptT, MonadError (throwError), runExceptT)
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (MonadReader (ask, local), ReaderT (runReaderT))
 import Control.Monad.Writer (MonadWriter (tell), WriterT (runWriterT))
-import Data.List (elemIndex, find, genericIndex, intercalate, splitAt)
+import Data.List (elemIndex, find, intercalate, splitAt)
 import qualified Data.Map as Map
 import qualified Data.Map.Internal.Debug as Map.Debug
 
@@ -29,8 +29,6 @@ projection (Product prod) i =
           ++ (show i ++ " of the product " ++ show prod)
 projection term i = Case (Numeral i) term
 
--- projection term _ = error $ "Cannot project term " ++ show term
-
 -- Insert element into 0 indexed n-fold product at a given position
 insertProduct :: Product -> Term -> Int -> Product
 insertProduct prod toInsert index =
@@ -44,10 +42,10 @@ removeProduct prod index =
    in (take index before) ++ after
 
 upperBound :: Numeral
-upperBound = 2
+upperBound = 4
 
-numerals :: [Numeral]
-numerals = [0 :: Numeral .. upperBound]
+numerals :: [Term]
+numerals = Numeral <$> [0 .. upperBound - 1]
 
 data Term
   = Numeral Numeral
@@ -60,14 +58,6 @@ data Term
   | Catch Term
   | Bottom
   deriving (Eq)
-
-instance Num Term where
-  fromInteger = Numeral . fromIntegral
-  (+) = undefined
-  (*) = undefined
-  abs = undefined
-  signum = undefined
-  negate = undefined
 
 instance Show Term where
   show = beautify 0
