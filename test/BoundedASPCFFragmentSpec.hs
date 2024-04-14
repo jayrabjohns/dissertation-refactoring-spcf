@@ -8,35 +8,71 @@ import Test.HUnit
 tests :: Test
 tests =
   TestList
-    [ injectionHasCorrectType,
-      retractIsObservationallyEquivelant
+    [ injectionHasCorrectType2,
+      injectionHasCorrectType3,
+      retractIsObservationallyEquivelant2,
+      retractIsObservationallyEquivelant3
     ]
 
-injectionHasCorrectType :: Test
-injectionHasCorrectType = do
+injectionHasCorrectType2 :: Test
+injectionHasCorrectType2 = do
   let f =
         Lambda "p" (Nat `Cross` Nat) $
           Case
             (Case (Numeral 1) (Variable "p"))
-            (Product $ [Bottom, Bottom])
+            (Product (Bottom <$ numerals))
   let injTermF = injTerm (typeof' f)
   let result = typeof' injTermF
-  let expected = ((Nat `Cross` Nat) :-> Empty) :-> (Nat `Cross` ((Nat :-> Empty) `Cross` (Nat :-> Empty)))
-  TestCase $ do
+  let continuationsType = foldl1 Cross ((Nat :-> Empty) <$ numerals)
+  let expected = ((Nat `Cross` Nat) :-> Empty) :-> (Nat `Cross` continuationsType)
+  TestCase $
     assertEqual "" expected result
 
-retractIsObservationallyEquivelant :: Test
-retractIsObservationallyEquivelant = do
+injectionHasCorrectType3 :: Test
+injectionHasCorrectType3 = do
+  let f =
+        Lambda "p" (Nat `Cross` Nat `Cross` Nat) $
+          Case
+            (Case (Numeral 1) (Variable "p"))
+            (Product (Bottom <$ numerals))
+  let injTermF = injTerm (typeof' f)
+  let result = typeof' injTermF
+  let continuationsType = foldl1 Cross ((Nat `Cross` Nat :-> Empty) <$ numerals)
+  let expected = ((Nat `Cross` Nat `Cross` Nat) :-> Empty) :-> (Nat `Cross` continuationsType)
+  TestCase $
+    assertEqual "" expected result
+
+retractIsObservationallyEquivelant2 :: Test
+retractIsObservationallyEquivelant2 = do
   let f =
         Lambda "p" (Nat `Cross` Nat) $
           Case
             (Case (Numeral 1) (Variable "p"))
-            (Product $ [Bottom, Bottom])
+            (Product (Bottom <$ numerals))
   let projInjF = proj (inj f)
   let allArgCombinations =
-        [ Product [Numeral x, Numeral y]
-          | x <- [0 .. upperBound - 1],
-            y <- [0 .. upperBound - 1]
+        [ Product [x, y]
+          | x <- numerals,
+            y <- numerals
+        ]
+  TestList
+    [ assertSameResult (Apply f arg) (Apply projInjF arg)
+      | arg <- allArgCombinations
+    ]
+
+retractIsObservationallyEquivelant3 :: Test
+retractIsObservationallyEquivelant3 = do
+  let f =
+        Lambda "p" (Nat `Cross` Nat `Cross` Nat) $
+          Case
+            (Case (Numeral 1) (Variable "p"))
+            (Product (Bottom <$ numerals))
+  let projInjF = proj (inj f)
+  let allArgCombinations =
+        [ Product [x, y, z]
+          | x <- numerals,
+            y <- numerals,
+            z <- numerals
         ]
   TestList
     [ assertSameResult (Apply f arg) (Apply projInjF arg)
