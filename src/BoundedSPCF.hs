@@ -53,8 +53,11 @@ data Term
   | Lambda Label Type Term
   | Apply Term Term
   | Succ Term
-  | Product Product -- <- sneakily my injection, uses the list constructor to convert it to the underlying datastructre
-  | Case Term Term -- <- my projection, uses the index function of the underlying list to return a term
+  | Product Product
+  | BinProduct Term Term
+  | Fst Term
+  | Snd Term
+  | Case Term Term
   | Catch Term
   | Bottom
   deriving (Eq)
@@ -71,6 +74,9 @@ instance Show Term where
       beautify i (Succ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Succ " ++ beautify 2 term
       beautify i (Product []) = if i /= 0 then "(" ++ s ++ ")" else s where s = "I"
       beautify _ (Product prod) = "<" ++ (intercalate ", " (map (beautify 2) prod)) ++ ">"
+      beautify _ (BinProduct lhs rhs) = "<" ++ (beautify 2) lhs ++ ", " ++ (beautify 2) rhs ++ ">"
+      beautify _ (Fst term) = "π1(" ++ show term ++ ")"
+      beautify _ (Snd term) = "π2(" ++ show term ++ ")"
       beautify i (Case numeral prod) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Case <" ++ beautify 0 numeral ++ ", " ++ beautify 0 prod ++ ">"
       beautify i (Catch term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Catch " ++ beautify 2 term
       beautify _ Bottom = "⊥"
@@ -190,6 +196,30 @@ eval (Succ term) = do
         else return $ Numeral i
     _ -> throwError $ "Cannot apply successor to non numeral" ++ show term
 eval (Product terms) = fmap Product (traverse eval terms)
+eval (BinProduct lhs rhs) = do
+  lEval <- eval lhs
+  rEval <- eval rhs
+  return $ BinProduct lEval rEval
+eval (Fst term) = do
+  body <- eval term
+  tell ["π1(" ++ show term ++ ")"]
+  case body of
+    (BinProduct fstElem _) -> return fstElem
+    (Product (fstElem : _)) -> return fstElem
+    wrongTerm ->
+      throwError $
+        "Can only take the first projection of products of length >= 1. "
+          ++ ("Fst is undefined for the term " ++ show wrongTerm)
+eval (Snd term) = do
+  body <- eval term
+  tell ["π2(" ++ show term ++ ")"]
+  case body of
+    (BinProduct _ sndElem) -> return sndElem
+    (Product (_ : sndElem : _)) -> return sndElem
+    wrongTerm ->
+      throwError $
+        "Can only take the second projection of products of length >= 2. "
+          ++ ("Snd is undefined for the term " ++ show wrongTerm)
 eval (Case num prod) = do
   nVal <- eval num
   pVal <- eval prod
@@ -296,6 +326,31 @@ catch (Product prod) = findStrict prod
       case res of
         i@(ArgumentIndex _) -> return i
         _ -> findStrict xs
+catch (BinProduct lhs rhs) = do
+  leftResult <- catch lhs
+  case leftResult of
+    Constant {} -> catch rhs
+    otherResult -> return otherResult
+catch (Fst term) = do
+  let body = normalise term
+  case body of
+    (BinProduct fstElem _) -> catch fstElem
+    (Product (fstElem : _)) -> catch fstElem
+    wrongTerm ->
+      return $
+        Diverge $
+          "Can only take the second projection of products of length >= 2. "
+            ++ ("Snd is undefined for the term " ++ show wrongTerm)
+catch (Snd term) = do
+  let body = normalise term
+  case body of
+    (BinProduct _ sndElem) -> catch sndElem
+    (Product (_ : sndElem : _)) -> catch sndElem
+    wrongTerm ->
+      return $
+        Diverge $
+          "Can only take the second projection of products of length >= 2. "
+            ++ ("Snd is undefined for the term " ++ show wrongTerm)
 catch (Case n prod) = do
   res <- catch n
   case res of
@@ -315,6 +370,9 @@ normalise (Apply lhs rhs) = do
     _ -> Apply (normalise lhs) arg
 normalise (Succ body) = Succ (normalise body)
 normalise (Product prod) = Product (map normalise prod)
+normalise (BinProduct lhs rhs) = BinProduct (normalise lhs) (normalise rhs)
+normalise (Fst term) = Fst (normalise term)
+normalise (Snd term) = Snd (normalise term)
 normalise (Case n prod) = Case (normalise n) (normalise prod)
 normalise (Catch body) = Catch (normalise body)
 
@@ -333,6 +391,9 @@ substitute old new (Apply lhs rhs) =
   Apply (substitute old new lhs) (substitute old new rhs)
 substitute old new (Succ body) = Succ $ substitute old new body
 substitute old new (Product prod) = Product $ map (substitute old new) prod
+substitute old new (BinProduct lhs rhs) = BinProduct (substitute old new lhs) (substitute old new rhs)
+substitute old new (Fst term) = Fst (substitute old new term)
+substitute old new (Snd term) = Snd (substitute old new term)
 substitute old new (Case n body) =
   Case (substitute old new n) (substitute old new body)
 substitute old new (Catch body) = Catch (substitute old new body)
@@ -349,6 +410,9 @@ rename old new abst@(Lambda label t body)
 rename old new (Apply lhs rhs) = Apply (rename old new lhs) (rename old new rhs)
 rename old new (Succ body) = Succ (rename old new body)
 rename old new (Product prod) = Product $ map (rename old new) prod
+rename old new (BinProduct lhs rhs) = BinProduct (rename old new lhs) (rename old new rhs)
+rename old new (Fst term) = Fst (rename old new term)
+rename old new (Snd term) = Snd (rename old new term)
 rename old new (Case n body) = Case (rename old new n) (rename old new body)
 rename old new (Catch body) = Catch (rename old new body)
 
@@ -365,6 +429,9 @@ used (Lambda label _ term) = label : used term
 used (Apply lhs rhs) = used lhs ++ used rhs
 used (Succ body) = used body
 used (Product prod) = prod >>= used
+used (BinProduct lhs rhs) = used lhs ++ used rhs
+used (Fst term) = used term
+used (Snd term) = used term
 used (Case num prod) = used num ++ used prod
 used (Catch term) = used term
 

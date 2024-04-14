@@ -53,15 +53,24 @@ typeof term@(Product terms) = do
   types <- traverse typeof terms
   let typ = foldl1 Cross types
   return $ trace ("[" ++ show term ++ "]: " ++ show typ) typ
--- let allTypesAreEqual = and $ map (== head types) (tail types)
--- if allTypesAreEqual
--- then return $ foldl1 Cross types
--- else error $ "Elements of a product must all be the same type. Product: " ++ show terms
--- return $ foldl' (Cross) (Cross fstType sndType) types
--- typeof p@(Product _) = error $ "Error, cannot construct a product with fewer than 2 elements\n" ++ show p
+typeof (BinProduct lhs rhs) = do
+  leftType <- typeof lhs
+  rightType <- typeof rhs
+  return $ leftType `Cross` rightType
+typeof term@(Fst body) = do
+  bodyType <- typeof body
+  case bodyType of
+    (Cross fstType _) -> return $ trace ("[" ++ show term ++ "]: " ++ show fstType) fstType
+    wrongType -> error $ "Cannot take π1 on the type " ++ show wrongType
+typeof term@(Snd body) = do
+  bodyType <- typeof body
+  case bodyType of
+    (Cross _ sndType) -> return $ trace ("[" ++ show term ++ "]: " ++ show sndType) sndType
+    wrongType -> error $ "Cannot take π2 on the type " ++ show wrongType
 typeof term@(Case n p) = do
   numType <- typeof n
   prodType <- typeof p
+  -- let allElemsAreBaseType = all (== Nat) (tail types)
   case (numType, prodType) of
     (Nat, (Cross _ elemType)) -> return $ trace ("[" ++ show term ++ "]: " ++ show elemType) elemType
     (Nat, Nat) -> return $ trace ("[" ++ show term ++ "]: " ++ show Nat) Nat
