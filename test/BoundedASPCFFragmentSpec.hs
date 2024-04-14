@@ -10,6 +10,8 @@ tests =
   TestList
     [ injectionHasCorrectType2,
       injectionHasCorrectType3,
+      projectionHasCorrectType2,
+      projectionHasCorrectType3,
       retractIsObservationallyEquivelant2,
       retractIsObservationallyEquivelant3
     ]
@@ -39,6 +41,34 @@ injectionHasCorrectType3 = do
   let result = typeof' injTermF
   let continuationsType = foldl1 Cross ((Nat `Cross` Nat :-> Empty) <$ numerals)
   let expected = ((Nat `Cross` Nat `Cross` Nat) :-> Empty) :-> (Nat `Cross` continuationsType)
+  TestCase $
+    assertEqual "" expected result
+
+projectionHasCorrectType2 :: Test
+projectionHasCorrectType2 = do
+  let f =
+        Lambda "p" (Nat `Cross` Nat) $
+          Case
+            (Case (Numeral 1) (Variable "p"))
+            (Product (Bottom <$ numerals))
+  let projTermF = projTerm (typeof' (inj f))
+  let result = typeof' projTermF
+  let continuationsType = foldl1 Cross ((Nat :-> Empty) <$ numerals)
+  let expected = (Nat `Cross` continuationsType) :-> (Nat `Cross` Nat :-> Empty)
+  TestCase $
+    assertEqual "" expected result
+
+projectionHasCorrectType3 :: Test
+projectionHasCorrectType3 = do
+  let f =
+        Lambda "p" (Nat `Cross` Nat `Cross` Nat) $
+          Case
+            (Case (Numeral 1) (Variable "p"))
+            (Product (Bottom <$ numerals))
+  let projTermF = projTerm (typeof' (inj f))
+  let result = typeof' projTermF
+  let continuationsType = foldl1 Cross ((Nat `Cross` Nat :-> Empty) <$ numerals)
+  let expected = (Nat `Cross` continuationsType) :-> (Nat `Cross` Nat `Cross` Nat :-> Empty)
   TestCase $
     assertEqual "" expected result
 

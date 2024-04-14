@@ -17,7 +17,7 @@ injTerm ftype@((:->) (Cross xtype _) Empty) =
   let strictIndex = Catch $ Variable "f"
    in Lambda "f" ftype $
         Case strictIndex $
-          Product [Product [Numeral i, continuations i] | i <- [0 .. m + 1]]
+          Product [BinProduct (Numeral i) (continuations i) | i <- [0 .. m + 1]]
   where
     -- A series of continuation functions for each value the argument could have
     continuations :: Int -> Term
@@ -54,29 +54,29 @@ proj term =
    in Apply (projTerm typ) term
 
 projTerm :: Type -> Term
-projTerm typ@(Cross _ (Cross _ (argsType :-> Empty))) =
+projTerm typ@(Cross _ (Cross _ (continuationArgsType :-> Empty))) =
   Lambda "tuple" typ $
-    Lambda "nextargs" argsType $
-      trace ("constructing proj term with type \\tuple: " ++ show typ ++ " \\nextargs: " ++ show argsType ++ ". ...") $
-        let strictIndex = projection (Variable "tuple") 0
+    Lambda "nextargs" fArgsType $
+      trace ("\nconstructing proj term with type \\tuple: " ++ show typ ++ " \\nextargs: " ++ show fArgsType ++ ". ...") $
+        let strictIndex = Fst (Variable "tuple")
             strictArg = \i -> projection (Variable "nextargs") i
          in Case strictIndex $
               Product [Case (strictArg i) (applications i) | i <- [0 .. m]]
   where
     applications :: Int -> Term
     applications i =
-      let cont = \j -> projection continuations j
-          missingArgs = Product $ removeProduct providedArgs i
+      let continuations = Snd (Variable "tuple")
+          cont = \j -> projection continuations j
+          missingArgs = Product $ removeProduct (trace ("nextargs = " ++ show providedArgs) providedArgs) i
        in Product [Apply (cont j) missingArgs | j <- [0 .. n]]
 
-    continuations :: Term
-    continuations = projection (Variable "tuple") 1
-
     providedArgs :: Product
-    providedArgs = [projection (Variable "nextargs") k | k <- [0 .. m]]
+    providedArgs = [projection (Variable "nextargs") i | i <- [0 .. m]]
+
+    fArgsType = continuationArgsType `Cross` Nat
 
     m :: Int
-    m = productLength argsType
+    m = (productLength fArgsType) - 1
 
     n :: Int
     n = upperBound - 1

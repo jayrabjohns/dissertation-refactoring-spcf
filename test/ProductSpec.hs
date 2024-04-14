@@ -21,9 +21,9 @@ insertProduct = do
 
 removeProduct :: Test
 removeProduct = do
-  let prod = map Numeral [1 .. 5]
+  let prod = map Numeral [0 .. 5]
   let updatedProduct = BoundedSPCF.removeProduct prod 3
-  let expected = map Numeral [1, 2, 3, 5]
+  let expected = map Numeral [0, 1, 2, 4, 5]
   TestLabel
     "should remove an element into a pre-existing product"
     $ assertProduct updatedProduct expected
