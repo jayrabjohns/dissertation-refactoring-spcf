@@ -6,7 +6,7 @@ import qualified BoundedSPCFTypesSpec
 import qualified ProductSpec
 import qualified SPCFSpec
 import qualified System.Exit as Exit
-import Test.HUnit
+import Test.HUnit (Counts (errors, failures), Test (TestList), runTestTT)
 
 main :: IO ()
 main = do
@@ -21,6 +21,6 @@ tests =
     [ SPCFSpec.tests,
       BoundedSPCFSpec.tests,
       ProductSpec.tests,
-      BoundedSPCFTypesSpec.tests
-      -- BoundedASPCFFragmentSpec.tests
+      BoundedSPCFTypesSpec.tests,
+      BoundedASPCFFragmentSpec.tests
     ]

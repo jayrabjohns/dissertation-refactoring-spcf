@@ -1,115 +1,108 @@
 module BoundedASPCF where
 
-import BoundedSPCF
-import BoundedSPCFTypes
-import Debug.Trace
+import BoundedSPCF (Product, Term (..), Type (..), insertProduct, projection, removeProduct, upperBound)
+import BoundedSPCFTypes (typeof')
+import Debug.Trace (trace)
 
 -- Take a term of the bounded SPCF and perform an injection into a 'tuple form'
 --   which contains the index at which `f` is strict as well a series of
 --   continuation functions for each possible value of the argument.
-inj :: Term -> Eval Term
-inj f@(Lambda _ (Cross _ _) _) = do
-  fType <- runJudgement (typeof f) emptyContext
-  return $ trace ("inj on type: " ++ show fType ++ "\n") $ Apply (injTerm fType) f
-inj f = error $ "cannot inj " ++ show f
+inj :: Term -> Term
+inj f =
+  let fType = typeof' f
+   in Apply (injTerm fType) f
 
 injTerm :: Type -> Term
-injTerm typ = Lambda "f" typ $ Case strictnessIndex continuations
+injTerm ftype@((:->) (Cross xtype _) Empty) =
+  let strictIndex = Catch $ Variable "f"
+   in Lambda "f" ftype $
+        Case strictIndex $
+          Product [Product [Numeral i, continuations i] | i <- [0 .. m + 1]]
   where
-    strictnessIndex :: Term
-    strictnessIndex = Succ $ Catch $ Variable "f"
-
     -- A series of continuation functions for each value the argument could have
-    continuations :: Term
-    continuations = Product [pair j | j <- [0 .. (n - 1)]]
-
-    -- A pair consisting of a value and a corresponding continuation intended
-    --   to be called if the argument is that value
-    pair :: Int -> Term
-    pair j = Product [Numeral j, continuation j]
+    continuations :: Int -> Term
+    continuations i = Product [continuation j i | j <- [0 .. n]]
 
     -- A continuation function for each argument of f for a given value
-    continuation :: Int -> Term
-    continuation j =
-      Product
-        [ Lambda "x" typ $ Apply (Variable "f") (projections j i)
-          | i <- [0 .. m]
-        ]
+    continuation :: Int -> Int -> Term
+    continuation j i = Lambda "x" xtype $ Apply (Variable "f") (args j i)
 
-    projections :: Int -> Int -> Term
-    projections j i = Product $ insertProduct p (Numeral j) i
+    -- Value for f's strict argument along with placeholders for later
+    args :: Int -> Int -> Term
+    args j i = Product $ insertProduct otherArgs (Numeral j) i
 
-    -- All possible projections on x <π_0, π_1, ... , π_(m-1)>
-    p :: Product
-    p = [projection (Variable "x") k | k <- [0 .. m - 1]]
+    -- The rest of the arguemnts for f which can be applied at a later time
+    otherArgs :: Product
+    otherArgs = [projection (Variable "x") k | k <- [0 .. m]]
 
     -- f has m + 1 arguments,
     m :: Int
-    m = (arity typ) - 1
+    m = (arity ftype) - 1
 
     -- Upper bound for the underlying datatype in bounded SPCF
     n :: Int
-    n = upperBound
+    n = upperBound - 1
+injTerm typ =
+  error $
+    "Cannot inject term in this form, it must"
+      ++ "be of the form [(T1 X T1 X ...) => 0]. The provided term is of type "
+      ++ show typ
 
--- Takes a term from the ASPCF and projects it back to SPCF
-proj :: Term -> Eval Term
-proj term = do
-  typ <- runJudgement (typeof term) emptyContext
-  return $ case typ of
-    (Cross ltype _) -> Apply (projTerm ltype) term
-    _ -> error $ "cannot proj on type " ++ show typ ++ "\n" ++ show term
-
--- let strictnessIndex = projection term 1
---     continuations = projection term 2
---  in Apply (Apply projTerm strictnessIndex) continuations
+proj :: Term -> Term
+proj term =
+  let typ = typeof' term
+   in Apply (projTerm typ) term
 
 projTerm :: Type -> Term
-projTerm typ = Lambda "x" typ $ Lambda "y" undefined $ body
+projTerm typ@(Cross _ (Cross _ (argsType :-> Empty))) =
+  Lambda "tuple" typ $
+    Lambda "nextargs" argsType $
+      trace ("constructing proj term with type \\tuple: " ++ show typ ++ " \\nextargs: " ++ show argsType ++ ". ...") $
+        let strictIndex = projection (Variable "tuple") 0
+            strictArg = \i -> projection (Variable "nextargs") i
+         in Case strictIndex $
+              Product [Case (strictArg i) (applications i) | i <- [0 .. m]]
   where
-    body :: Term
-    body =
-      Case
-        strictnessIndex
-        $ Product
-          [ Case
-              (projection (Variable "y") i)
-              applications
-            | i <- [0 .. m]
-          ]
-
-    strictnessIndex :: Term
-    strictnessIndex = projection (Variable "x") 1
-
-    applications :: Term
-    applications =
-      Product
-        [ Apply (continuation j) (arg j)
-          | j <- [0 .. (n - 1)]
-        ]
-
-    continuation :: Int -> Term
-    continuation j = projection continuations j
+    applications :: Int -> Term
+    applications i =
+      let cont = \j -> projection continuations j
+          missingArgs = Product $ removeProduct providedArgs i
+       in Product [Apply (cont j) missingArgs | j <- [0 .. n]]
 
     continuations :: Term
-    continuations = projection (Variable "x") 2
+    continuations = projection (Variable "tuple") 1
 
-    arg :: Int -> Term
-    arg j = Product $ removeProduct projections j
+    providedArgs :: Product
+    providedArgs = [projection (Variable "nextargs") k | k <- [0 .. m]]
 
-    projections :: Product
-    projections = [projection (Variable "y") k | k <- [0 .. m]]
-
-    -- there are m + 1 many things on the lhs of the product
     m :: Int
-    m = (arity typ) - 1
+    m = productLength argsType
 
     n :: Int
-    n = upperBound
+    n = upperBound - 1
+projTerm typ =
+  error $
+    "Cannot project term in this form, it must"
+      ++ "be of the form [m+1 X (n^m => 0)^n]. The provided term is of type "
+      ++ show typ
 
 -- Assuming it is normalised for now
 arity :: Type -> Int
-arity Base = 1
+arity Nat = 0
 arity Empty = 0
 arity Unit = 0
-arity ((:->) t1 t2) = arity t1 + arity t2
-arity (Cross t1 t2) = arity t1 + arity t2
+arity ((:->) _ t2) = 1 + arity t2
+arity (Cross _ _) = 0
+
+nfoldnats :: Int -> Type
+nfoldnats 1 = Nat
+nfoldnats n =
+  let nats = [Nat | _ <- [0 .. n]]
+   in foldr1 Cross nats
+
+productLength :: Type -> Int
+productLength Nat = 1
+productLength Empty = 1
+productLength Unit = 1
+productLength ((:->) t1 t2) = productLength t1 + productLength t2
+productLength (Cross t1 t2) = productLength t1 + productLength t2
