@@ -1,7 +1,8 @@
-module SPCFConsts (apply, (<+), (+>), addLeft, addRight, addLeftTerm, addRightTerm, info) where
+module SPCF.Constants (apply, (<+), (+>), addLeft, addRight, addLeftTerm, addRightTerm, info) where
 
 import Frontend.Lexer (AlexPosn (..))
-import SPCF
+import SPCF.AST
+import SPCF.Evaluation
 
 info :: AlexPosn
 info = AlexPn 0 0 0

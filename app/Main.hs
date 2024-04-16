@@ -1,12 +1,10 @@
 module Main where
 
 import Frontend.Parser
--- import Preprocessor (importLines, substImports)
-import SPCF
-import SPCFTypes
+import SPCF.AST
+import SPCF.Interpreter
+-- import SPCF.Types
 import System.Environment (getArgs)
-
--- import Tycheck (runTycheck, tycheckProg)
 
 main :: IO ()
 main = do

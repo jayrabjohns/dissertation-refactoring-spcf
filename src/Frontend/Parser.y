@@ -7,7 +7,8 @@
 module Frontend.Parser(parseProg) where
 
 import Frontend.Lexer
-import SPCF (Statement(..), Error(..), Label, Prog(..), Term(..), Type(..), termInfo)
+import SPCF.AST (Error(..), Label, Term(..), Type(..), termInfo)
+import SPCF.Interpreter(Statement(..), Prog(..),)
 }
 
 %name parse
@@ -57,15 +58,15 @@ import SPCF (Statement(..), Error(..), Label, Prog(..), Term(..), Type(..), term
 %%
 
 Prog :
-  Statements { SPCF.Prog { SPCF.pinfo_of = AlexPn 0 0 0, SPCF.prog_of = $1 } }
+  Statements { SPCF.Interpreter.Prog { SPCF.Interpreter.pinfo_of = AlexPn 0 0 0, SPCF.Interpreter.prog_of = $1 } }
 
 -- Atomic types
 AType :
-  nat { SPCF.Base }
+  nat { SPCF.AST.Base }
   | '(' Type ')' { $2 }
 
 ArrowType :
-  AType arrow ArrowType { (SPCF.:->) $1 $3 }
+  AType arrow ArrowType { (SPCF.AST.:->) $1 $3 }
   | AType { $1 }
 
 Type :
@@ -73,19 +74,19 @@ Type :
 
 Term :
   AppTerm { $1 }
-  | if Term then Term else Term { SPCF.If0 $1 $2 $4 $6 }
+  | if Term then Term else Term { SPCF.AST.If0 $1 $2 $4 $6 }
   | '\\' id TyBinder doublearrow Term {
     case $2 of
       Token _ (TokenId id) ->
-        SPCF.Lambda $1 id $3 $5 }
+        SPCF.AST.Lambda $1 id $3 $5 }
 
 AppTerm :
   ATerm { $1 }
-  | AppTerm ATerm { SPCF.Apply (termInfo $1) $1 $2 }
-  | succ ATerm { SPCF.Succ $1 $2 }
-  | pred ATerm { SPCF.Pred $1 $2 }
-  | fix ATerm { SPCF.YComb $1 $2 }
-  | catch ATerm { SPCF.Catch $1 $2 }
+  | AppTerm ATerm { SPCF.AST.Apply (termInfo $1) $1 $2 }
+  | succ ATerm { SPCF.AST.Succ $1 $2 }
+  | pred ATerm { SPCF.AST.Pred $1 $2 }
+  | fix ATerm { SPCF.AST.YComb $1 $2 }
+  | catch ATerm { SPCF.AST.Catch $1 $2 }
 
 -- Atomic terms
 ATerm :
@@ -93,20 +94,20 @@ ATerm :
   | natVal {
     case $1 of
       Token info (TokenNat n) ->
-        SPCF.Numeral info n }
-  | error1 { SPCF.Error $1 SPCF.Error1 }
-  | error2 { SPCF.Error $1 SPCF.Error2 }
+        SPCF.AST.Numeral info n }
+  | error1 { SPCF.AST.Error $1 SPCF.AST.Error1 }
+  | error2 { SPCF.AST.Error $1 SPCF.AST.Error2 }
   | id {
     case $1 of
       Token info (TokenId id) ->
-        SPCF.Variable info id }
+        SPCF.AST.Variable info id }
 
 Statement :
   id Binder {
     case $1 of
       Token info (TokenId id) ->
-        SPCF.Declare info id $2 }
-  | eval Term { SPCF.Evaluate $1 $2 }
+        SPCF.Interpreter.Declare info id $2 }
+  | eval Term { SPCF.Interpreter.Evaluate $1 $2 }
 
 TyBinder :
   ':' Type { $2 }
@@ -128,6 +129,6 @@ happyError (Token p t) =
   alexError' p ("parse error at token '" ++ unLex t ++ "'")
 
 
-parseProg :: FilePath -> String -> Either String (SPCF.Prog AlexPosn)
+parseProg :: FilePath -> String -> Either String (SPCF.Interpreter.Prog AlexPosn)
 parseProg = runAlex' parse
 }

@@ -1,10 +1,11 @@
-module SPCFTypes where
+module SPCF.Types where
 
-import Control.Monad.Identity
-import Control.Monad.Reader
+import Control.Monad.Identity (Identity (runIdentity))
+import Control.Monad.Reader (MonadReader (ask, local), ReaderT (runReaderT))
 import qualified Data.Map as Map
-import Debug.Trace
-import SPCF
+import Debug.Trace (trace)
+import SPCF.AST (Label, Term (..), Type (..))
+import SPCF.Evaluation (Eval)
 
 emptyContext :: Context
 emptyContext = Map.empty

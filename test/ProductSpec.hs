@@ -1,28 +1,28 @@
 module ProductSpec where
 
-import BoundedSPCF
+import BoundedSPCF.AST
 import Test.HUnit
 
 tests :: Test
 tests =
   TestList
-    [ ProductSpec.insertProduct,
-      ProductSpec.removeProduct
+    [ insert,
+      remove
     ]
 
-insertProduct :: Test
-insertProduct = do
+insert :: Test
+insert = do
   let prod = map Numeral [1 .. 5]
-  let updatedProduct = BoundedSPCF.insertProduct prod (Numeral 10) 3
+  let updatedProduct = insertProduct prod (Numeral 10) 3
   let expected = map Numeral [1, 2, 3, 10, 4, 5]
   TestLabel
     "should insert an element into a pre-existing product"
     $ assertProduct updatedProduct expected
 
-removeProduct :: Test
-removeProduct = do
+remove :: Test
+remove = do
   let prod = map Numeral [0 .. 5]
-  let updatedProduct = BoundedSPCF.removeProduct prod 3
+  let updatedProduct = removeProduct prod 3
   let expected = map Numeral [0, 1, 2, 4, 5]
   TestLabel
     "should remove an element into a pre-existing product"

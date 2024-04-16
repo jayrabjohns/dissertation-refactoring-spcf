@@ -1,7 +1,7 @@
-module BoundedASPCF where
+module BoundedSPCF.AffineTransformation where
 
-import BoundedSPCF (Product, Term (..), Type (..), insertProduct, projection, removeProduct, upperBound)
-import BoundedSPCFTypes (typeof')
+import BoundedSPCF.AST (Product, Term (..), Type (..), insertProduct, projection, removeProduct, upperBound)
+import BoundedSPCF.Types (typeof')
 import Debug.Trace (trace)
 
 -- Take a term of the bounded SPCF and perform an injection into a 'tuple form'

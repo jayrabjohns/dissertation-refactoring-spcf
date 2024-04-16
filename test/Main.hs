@@ -5,6 +5,7 @@ import qualified BoundedSPCFSpec
 import qualified BoundedSPCFTypesSpec
 import qualified ProductSpec
 import qualified SPCFSpec
+import qualified SPCFTermManipulationSpec
 import qualified System.Exit as Exit
 import Test.HUnit (Counts (errors, failures), Test (TestList), runTestTT)
 
@@ -19,8 +20,9 @@ tests :: Test
 tests =
   TestList
     [ SPCFSpec.tests,
-      BoundedSPCFSpec.tests,
+      SPCFTermManipulationSpec.tests,
       ProductSpec.tests,
+      BoundedSPCFSpec.tests,
       BoundedSPCFTypesSpec.tests,
       BoundedASPCFFragmentSpec.tests
     ]

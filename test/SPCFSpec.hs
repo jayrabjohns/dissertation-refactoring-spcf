@@ -1,10 +1,11 @@
 module SPCFSpec where
 
-import qualified Data.Map as Map
-import SPCF
-import SPCFConsts (info)
-import qualified SPCFConsts
+import SPCF.AST
+import SPCF.Constants (info)
+import qualified SPCF.Constants
+import SPCF.Evaluation
 import Test.HUnit
+import Utils.Environment
 
 tests :: Test
 tests =
@@ -38,7 +39,7 @@ evalVariable :: Test
 evalVariable = do
   let term = Variable info "x"
   let expectedVal = Numeral info 5
-  let env = Map.fromList [("x", expectedVal)]
+  let env = fromList [("x", expectedVal)]
   TestLabel
     "should substitute a variable with a value from the environment"
     $ assertEval term env expectedVal
@@ -46,7 +47,7 @@ evalVariable = do
 evalLambdaAbstraction :: Test
 evalLambdaAbstraction = do
   let term = (Lambda info "x" (Base :-> Base) (Variable info "x"))
-  let env = Map.singleton "x" (Numeral info 5)
+  let env = fromList [("x", (Numeral info 5))]
   let expectedVal = term
   TestLabel
     "should evaluate an abstraction to a closure containing the abstraction"
@@ -56,13 +57,13 @@ evalApplication :: Test
 evalApplication =
   do
     let term =
-          ( Apply
-              info
-              (Lambda info "f" (Base :-> Base) (Variable info "f"))
-              (Variable info "y")
-          )
+          Apply
+            info
+            (Lambda info "f" (Base :-> Base) (Variable info "f"))
+            (Variable info "y")
+
     let expectedVal = Numeral info 10
-    let env = Map.fromList [("y", expectedVal)]
+    let env = fromList [("y", expectedVal)]
     TestLabel
       "should correctly evaluate application to a numeral"
       $ assertEval term env expectedVal
@@ -71,7 +72,7 @@ evalSuccessor :: Test
 evalSuccessor = do
   let term = Succ info (Variable info "x")
   let expectedVal = Numeral info 1
-  let env = Map.singleton "x" (Numeral info 0)
+  let env = fromList [("x", (Numeral info 0))]
   TestLabel
     "successor of a numeral should evaluate to the numeral + 1"
     $ assertEval term env expectedVal
@@ -80,7 +81,7 @@ evalPredecessor :: Test
 evalPredecessor = do
   let term = Pred info $ Variable info "x"
   let expectedVal = Numeral info 0
-  let env = Map.singleton "x" (Numeral info 1)
+  let env = fromList [("x", (Numeral info 1))]
   TestLabel
     "predecessor of a numeral should evaluate to the numeral - 1"
     $ assertEval term env expectedVal
@@ -89,7 +90,7 @@ evalPredecessorOf0 :: Test
 evalPredecessorOf0 = do
   let term = Pred info (Variable info "x")
   let expectedVal = Numeral info 0
-  let env = Map.singleton "x" (Numeral info 0)
+  let env = fromList [("x", (Numeral info 0))]
   TestLabel
     "predecessor of 0 in the natural numbers should evaluate to 0"
     $ assertEval term env expectedVal
@@ -108,7 +109,7 @@ evalTrueIf0 = do
           (Variable info "z")
 
   let expectedVal = Numeral info 3
-  let env = Map.fromList [("x", (Numeral info 0)), ("y", expectedVal), ("z", (Numeral info 6))]
+  let env = fromList [("x", (Numeral info 0)), ("y", expectedVal), ("z", (Numeral info 6))]
   TestLabel
     "if0 should evaluate to left term when condition is 0"
     $ assertEval term env expectedVal
@@ -127,7 +128,7 @@ evalFalseIfNot0 = do
           (Variable info "z")
 
   let expectedVal = Numeral info 6
-  let env = Map.fromList [("x", (Numeral info 1)), ("y", (Numeral info 3)), ("z", (Numeral info 6))]
+  let env = fromList [("x", (Numeral info 1)), ("y", (Numeral info 3)), ("z", (Numeral info 6))]
   TestLabel
     "if0 should evaluate to right term when condition is 0"
     $ assertEval term env expectedVal
@@ -157,7 +158,7 @@ evalNestedTerms = do
   let expectedVal = Numeral info 7
   TestLabel
     "should evaluate nested expression correctly"
-    $ assertEval application emptyEnv expectedVal
+    $ assertEval application empty expectedVal
 
 evalFixedPointOfLiteral :: Test
 evalFixedPointOfLiteral = do
@@ -169,12 +170,12 @@ evalFixedPointOfLiteral = do
   let expectedVal = Numeral info 4
   TestLabel
     "fixed point of a literal should evaluate to the given literal"
-    $ assertEval term emptyEnv expectedVal
+    $ assertEval term empty expectedVal
 
 evalFixedPoint :: Test
 evalFixedPoint = do
-  let addition = SPCFConsts.addLeft (Variable info "f") (Variable info "z")
-  let env = Map.fromList [("f", (Numeral info 5)), ("z", (Numeral info 3))]
+  let addition = SPCF.Constants.addLeft (Variable info "f") (Variable info "z")
+  let env = fromList [("f", (Numeral info 5)), ("z", (Numeral info 3))]
   let expectedVal = Numeral info 8
   TestLabel
     "should evaluate term using a fixed point combinator avoiding variable capture"
@@ -186,23 +187,23 @@ evalError = do
   let expectedVal = Error info Error1
   TestLabel
     "should error"
-    $ assertEval term emptyEnv expectedVal
+    $ assertEval term empty expectedVal
 
 evalLeftAdd :: Test
 evalLeftAdd = do
-  let term = SPCFConsts.addLeft (Error info Error1) (Error info Error2)
+  let term = SPCF.Constants.addLeft (Error info Error1) (Error info Error2)
   let expectedVal = Error info Error1
   TestLabel
     "should return left error when that is evaluated first"
-    $ assertEval term emptyEnv expectedVal
+    $ assertEval term empty expectedVal
 
 evalRightAdd :: Test
 evalRightAdd = do
-  let term = SPCFConsts.addRight (Error info Error1) (Error info Error2)
+  let term = SPCF.Constants.addRight (Error info Error1) (Error info Error2)
   let expectedVal = Error info Error2
   TestLabel
     "should return right error when that is evaluated first"
-    $ assertEval term emptyEnv expectedVal
+    $ assertEval term empty expectedVal
 
 catchOnLiteral :: Test
 catchOnLiteral = do
@@ -214,7 +215,7 @@ catchOnLiteral = do
   let expectedVal = Numeral info (4 + 3)
   TestLabel
     "should return constant + the number of arguments when catch evaluates to a constant"
-    $ assertEval term emptyEnv expectedVal
+    $ assertEval term empty expectedVal
 
 catchOnError :: Test
 catchOnError = do
@@ -227,7 +228,7 @@ catchOnError = do
   let expectedVal = Numeral info 3
   TestLabel
     "should return the number arguments when catch evaluates a constant error"
-    $ assertEval term emptyEnv expectedVal
+    $ assertEval term empty expectedVal
 
 catchOnSimpleAbstraction :: Test
 catchOnSimpleAbstraction = do
@@ -235,7 +236,7 @@ catchOnSimpleAbstraction = do
   let expectedVal = Numeral info 0
   TestLabel
     "should return 1 with 1 argument term"
-    $ assertEval term emptyEnv expectedVal
+    $ assertEval term empty expectedVal
 
 catchApplicationRhsFirst :: Test
 catchApplicationRhsFirst = do
@@ -247,7 +248,7 @@ catchApplicationRhsFirst = do
   let expectedVal = Numeral info 1
   TestLabel
     "should consider RHS first when catching an application"
-    $ assertEval term emptyEnv expectedVal
+    $ assertEval term empty expectedVal
 
 catchApplicationLhsSecond :: Test
 catchApplicationLhsSecond = do
@@ -259,7 +260,7 @@ catchApplicationLhsSecond = do
   let expectedVal = Numeral info 0
   TestLabel
     "should consider LHS second when catching an applicaiton of a constant"
-    $ assertEval term emptyEnv expectedVal
+    $ assertEval term empty expectedVal
 
 catchOnIf0Condition :: Test
 catchOnIf0Condition = do
@@ -267,7 +268,7 @@ catchOnIf0Condition = do
   let expectedVal = Numeral info 0
   TestLabel
     "should consider condition first when catching If0"
-    $ assertEval term emptyEnv expectedVal
+    $ assertEval term empty expectedVal
 
 catchOnIf0True :: Test
 catchOnIf0True = do
@@ -275,7 +276,7 @@ catchOnIf0True = do
   let expectedVal = Numeral info 0
   TestLabel
     "should consider true path first when catching If0 and the condition is a constant 0"
-    $ assertEval term emptyEnv expectedVal
+    $ assertEval term empty expectedVal
 
 catchOnIf0False :: Test
 catchOnIf0False = do
@@ -283,15 +284,15 @@ catchOnIf0False = do
   let expectedVal = Numeral info 0
   TestLabel
     "should consider false path when catching If0, the condition, and true path are constant"
-    $ assertEval term emptyEnv expectedVal
+    $ assertEval term empty expectedVal
 
 catchFixedPoint :: Test
 catchFixedPoint = do
-  let term = Catch info $ YComb info SPCFConsts.addRightTerm
+  let term = Catch info $ YComb info SPCF.Constants.addRightTerm
   let expectedVal = Numeral info 2
   TestLabel
     "should return index of argument which is evaluated first"
-    $ assertEval term emptyEnv expectedVal
+    $ assertEval term empty expectedVal
 
 assertEval :: (Eq info) => Term info -> Environment (Term info) -> Term info -> Test
 assertEval term env expectedVal =

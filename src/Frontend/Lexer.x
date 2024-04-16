@@ -8,7 +8,7 @@ module Frontend.Lexer where
 import Control.Monad (liftM)
 import Data.Char (chr)
 import Prelude hiding (lex)
-import SPCF (Label)
+import SPCF.AST (Label)
 }
 %wrapper "monadUserState"
 $digit = 0-9

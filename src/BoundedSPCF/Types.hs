@@ -1,6 +1,6 @@
-module BoundedSPCFTypes where
+module BoundedSPCF.Types where
 
-import BoundedSPCF (Label, Term (..), Type (..))
+import BoundedSPCF.AST (Label, Term (..), Type (..))
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (MonadReader (ask, local), ReaderT (runReaderT))
 import qualified Data.Map as Map

@@ -1,7 +1,7 @@
 module BoundedSPCFTypesSpec where
 
-import BoundedSPCF
-import BoundedSPCFTypes
+import BoundedSPCF.AST
+import BoundedSPCF.Types
 import Test.HUnit
 
 tests :: Test

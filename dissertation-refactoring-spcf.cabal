@@ -14,12 +14,18 @@ extra-doc-files:
 library
     exposed-modules:
         PCF
-        SPCF
-        SPCFTypes
-        -- SPCFConsts
-        BoundedSPCF
-        BoundedSPCFTypes
-        BoundedASPCF
+        SPCF.AST
+        SPCF.TermManipulation
+        SPCF.Interpreter
+        SPCF.Types
+        SPCF.Constants
+        SPCF.Evaluation
+        BoundedSPCF.AST
+        BoundedSPCF.Types
+        BoundedSPCF.AffineTransformation
+        BoundedSPCF.Evaluation
+        BoundedSPCF.TermManipulation
+        Utils.Environment
         STLC
         Frontend.Lexer 
         Frontend.Parser
@@ -51,7 +57,8 @@ test-suite dissertation-refactoring-spcf-test
     main-is:          Main.hs
     hs-source-dirs:   test
     other-modules:
-        -- SPCFSpec
+        SPCFSpec
+        SPCFTermManipulationSpec
         BoundedSPCFSpec
         BoundedSPCFTypesSpec
         BoundedASPCFFragmentSpec

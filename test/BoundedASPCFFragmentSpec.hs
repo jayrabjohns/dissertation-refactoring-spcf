@@ -1,9 +1,12 @@
 module BoundedASPCFFragmentSpec where
 
-import BoundedASPCF
-import BoundedSPCF
-import BoundedSPCFTypes
+import BoundedSPCF.AST
+import BoundedSPCF.AffineTransformation
+import BoundedSPCF.Evaluation
+import BoundedSPCF.TermManipulation
+import BoundedSPCF.Types
 import Test.HUnit
+import Utils.Environment
 
 tests :: Test
 tests =
@@ -113,18 +116,17 @@ assertSameResult :: Term -> Term -> Test
 assertSameResult term1 term2 = TestCase $ do
   _ <- putStrLn ("term1 = " ++ show (normalise term1))
   _ <- putStrLn ("term2 = " ++ show (normalise term2))
-  result1 <- runEvalIO (eval term1) emptyEnv
-  result2 <- runEvalIO (eval term2) emptyEnv
+  result1 <- runEvalIO (eval term1) empty
+  result2 <- runEvalIO (eval term2) empty
   assertEqual
     ( "Terms don't evaluate to the same result. Term: "
         ++ (show term1 ++ "Evaluates to " ++ show result1 ++ "\n")
         ++ (show term2 ++ "Evaluates to " ++ show result2 ++ ". \n")
-        ++ ("Environment: " ++ show emptyEnv)
     )
     result1
     result2
 
-assertEval :: Term -> Environment -> Term -> Test
+assertEval :: Term -> Environment Term -> Term -> Test
 assertEval term env expectedTerm = TestCase $ do
   result <- runEvalIO (eval term) env
   assertEqual

@@ -1,7 +1,9 @@
 module BoundedSPCFSpec where
 
-import BoundedSPCF
+import BoundedSPCF.AST
+import BoundedSPCF.Evaluation
 import Test.HUnit
+import Utils.Environment
 
 tests :: Test
 tests =
@@ -20,7 +22,7 @@ evalCase = do
   let expectedResult = Numeral 3
   TestLabel
     "should evaluate to nth term of p for (Case n p)"
-    $ assertEval term emptyEnv expectedResult
+    $ assertEval term empty expectedResult
 
 evalCase0 :: Test
 evalCase0 = do
@@ -31,7 +33,7 @@ evalCase0 = do
   let expectedResult = Numeral 1
   TestLabel
     "should evaluate to the emtpy product for (Case 0 p)"
-    $ assertEval term emptyEnv expectedResult
+    $ assertEval term empty expectedResult
 
 -- Using the strictness index of a function as the index of a case statement
 evalCaseWithCatchAsNumeral :: Test
@@ -43,9 +45,9 @@ evalCaseWithCatchAsNumeral = do
   let expectedResult = Numeral 0
   TestLabel
     "should expect correct behavour when using Catch to generate a numeral for Case, including using hte correct index offset (0 or 1)"
-    $ assertEval term emptyEnv expectedResult
+    $ assertEval term empty expectedResult
 
-assertEval :: Term -> Environment -> Term -> Test
+assertEval :: Term -> Environment Term -> Term -> Test
 assertEval term env expectedTerm =
   TestCase
     ( do
