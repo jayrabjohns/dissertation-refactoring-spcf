@@ -40,13 +40,13 @@ instance Show (Term info) where
       beautify _ (Variable _ x) = x
       beautify i (Lambda _ var _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "\\" ++ show var ++ {-": " ++ show t ++ -} ". " ++ beautify 0 term
       beautify i (Apply _ lhs rhs) = if i == 2 then "(" ++ s ++ ")" else s where s = beautify 1 lhs ++ " " ++ beautify 2 rhs
-      beautify i (Succ _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Succ " ++ beautify 2 term
-      beautify i (Pred _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Pred " ++ beautify 2 term
-      beautify i (YComb _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Y " ++ beautify 2 term
-      beautify i (If0 _ cond lterm rterm) = if i == 2 then "(" ++ s ++ ")" else s where s = "If0 " ++ beautify 1 cond ++ " then " ++ beautify 1 lterm ++ " else " ++ beautify 1 rterm
+      beautify i (Succ _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "succ " ++ beautify 2 term
+      beautify i (Pred _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "pred " ++ beautify 2 term
+      beautify i (YComb _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "fix " ++ beautify 2 term
+      beautify i (If0 _ cond lterm rterm) = if i == 2 then "(" ++ s ++ ")" else s where s = "if0 " ++ beautify 1 cond ++ " then " ++ beautify 1 lterm ++ " else " ++ beautify 1 rterm
       beautify _ (Error _ Error1) = "Error1"
       beautify _ (Error _ Error2) = "Error2"
-      beautify i (Catch _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Catch " ++ beautify 2 term
+      beautify i (Catch _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "catch " ++ beautify 2 term
 
 -- In the bounded SPCF, the base type will also be bounded. E.g. Boolean or n natural ints
 
