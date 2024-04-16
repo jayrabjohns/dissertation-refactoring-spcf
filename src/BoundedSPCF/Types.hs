@@ -1,15 +1,13 @@
 module BoundedSPCF.Types where
 
-import BoundedSPCF.AST (Label, Term (..), Type (..))
+import BoundedSPCF.AST (Term (..), Type (..))
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (MonadReader (ask, local), ReaderT (runReaderT))
-import qualified Data.Map as Map
 import Debug.Trace (trace)
+import Utils.Environment (Environment, empty, insert, lookup)
+import Prelude hiding (lookup)
 
-type Context a = Map.Map Label a
-
-emptyContext :: Context a
-emptyContext = Map.empty
+type Context a = Environment a
 
 type Judgement a = (ReaderT (Context a) Identity) a
 
@@ -17,7 +15,7 @@ runJudgement :: Judgement a -> (Context a) -> a
 runJudgement judgement context = runIdentity $ runReaderT judgement context
 
 typeof' :: Term -> Type
-typeof' term = trace ("\nTyping term " ++ show term) runJudgement (typeof term) emptyContext
+typeof' term = trace ("\nTyping term " ++ show term) runJudgement (typeof term) empty
 
 typeof :: Term -> Judgement Type
 typeof Bottom = return Empty
@@ -25,12 +23,12 @@ typeof Top = return Empty
 typeof (Numeral _) = return Nat
 typeof (Variable label) = do
   context <- ask
-  case Map.lookup label context of
+  case lookup label context of
     Just val -> return $ trace ("[" ++ label ++ "]: " ++ show val) val
     Nothing -> error $ "Undefined variable " ++ label
 typeof f@(Lambda label varType body) = do
   context <- ask
-  let newContext = Map.insert label varType context
+  let newContext = insert label varType context
   bodType <- local (const newContext) (typeof body)
   let typ = varType :-> bodType
   return $ trace ("[" ++ show f ++ "]: " ++ show typ) typ

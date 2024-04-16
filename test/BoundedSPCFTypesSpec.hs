@@ -3,6 +3,7 @@ module BoundedSPCFTypesSpec where
 import BoundedSPCF.AST
 import BoundedSPCF.Types
 import Test.HUnit
+import Utils.Environment
 
 tests :: Test
 tests =
@@ -17,7 +18,7 @@ typeProduct :: Test
 typeProduct = do
   let prod = Product [Numeral 1, Numeral 2, Numeral 3]
   let expectedType = Nat `Cross` Nat `Cross` Nat
-  let typ = runJudgement (typeof prod) emptyContext
+  let typ = runJudgement (typeof prod) empty
   TestCase $
     assertEqual "" expectedType typ
 
@@ -26,7 +27,7 @@ typeCase = do
   let prod = Product [Numeral 1, Numeral 2, Numeral 3, Numeral 4]
   let term = Case (Numeral 1) prod
   let expectedType = Nat
-  let result = runJudgement (typeof term) emptyContext
+  let result = runJudgement (typeof term) empty
   TestCase $
     assertEqual "" expectedType result
 
@@ -34,7 +35,7 @@ typeLongFunction :: Test
 typeLongFunction = do
   let term = Lambda "x" Nat $ Lambda "y" Nat $ Lambda "z" Nat $ Lambda "w" Nat $ (Variable "x")
   let expectedType = Nat :-> Nat :-> Nat :-> Nat :-> Nat
-  let result = runJudgement (typeof term) emptyContext
+  let result = runJudgement (typeof term) empty
   TestCase $
     assertEqual "" expectedType result
 
@@ -42,6 +43,6 @@ typeFunction :: Test
 typeFunction = do
   let term = Lambda "p" (Nat `Cross` Nat `Cross` Nat) $ Lambda "i" Nat $ Case (Variable "i") (Variable "p")
   let expectedType = (Nat `Cross` Nat `Cross` Nat) :-> Nat :-> Nat
-  let typ = runJudgement (typeof term) emptyContext
+  let typ = runJudgement (typeof term) empty
   TestCase $
     assertEqual "" expectedType typ
