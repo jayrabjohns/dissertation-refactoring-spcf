@@ -8,6 +8,8 @@ import Debug.Trace (trace)
 --   which contains the index at which `f` is strict as well a series of
 --   continuation functions for each possible value of the argument.
 inj :: Term -> Term
+inj Top = Top
+inj Bottom = Bottom
 inj f =
   let fType = typeof' f
    in Apply (injTerm fType) f
@@ -49,6 +51,8 @@ injTerm typ =
       ++ show typ
 
 proj :: Term -> Term
+proj Top = Top
+proj Bottom = Bottom
 proj term =
   let typ = typeof' term
    in Apply (projTerm typ) term

@@ -21,6 +21,7 @@ typeof' term = trace ("\nTyping term " ++ show term) runJudgement (typeof term) 
 
 typeof :: Term -> Judgement Type
 typeof Bottom = return Empty
+typeof Top = return Empty
 typeof (Numeral _) = return Nat
 typeof (Variable label) = do
   context <- ask

@@ -60,6 +60,7 @@ data Term
   | Case Term Term
   | Catch Term
   | Bottom
+  | Top
   deriving (Eq)
 
 instance Show Term where
@@ -80,6 +81,7 @@ instance Show Term where
       beautify i (Case numeral prod) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Case <" ++ beautify 0 numeral ++ ", " ++ beautify 0 prod ++ ">"
       beautify i (Catch term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "Catch " ++ beautify 2 term
       beautify _ Bottom = "⊥"
+      beautify _ Top = "T"
 
 data Type
   = Nat -- Base type (numerals)
@@ -147,6 +149,7 @@ interpretIO term = runEvalIO (eval term) emptyEnv
 --   context up to that point.
 eval :: Term -> Eval Term
 eval Bottom = return Bottom
+eval Top = return Top
 eval (Numeral i) = return $ Numeral i
 eval (Variable label) = do
   env <- ask
@@ -294,6 +297,9 @@ catch :: Term -> Catch CatchResult
 catch Bottom = do
   args <- ask
   return $ Constant Bottom (length args)
+catch Top = do
+  args <- ask
+  return $ Constant Top (length args)
 catch i@(Numeral _) = do
   args <- ask
   return $ Constant i (length args)
@@ -360,6 +366,7 @@ catch (Catch body) = catch body
 
 normalise :: Term -> Term
 normalise Bottom = Bottom
+normalise Top = Top
 normalise num@(Numeral _) = num
 normalise var@(Variable _) = var
 normalise (Lambda label typ body) = Lambda label typ (normalise body)
@@ -378,6 +385,7 @@ normalise (Catch body) = Catch (normalise body)
 
 substitute :: Label -> Term -> Term -> Term
 substitute _ _ Bottom = Bottom
+substitute _ _ Top = Top
 substitute _ _ literal@Numeral {} = literal
 substitute old new var@(Variable label)
   | label == old = new
@@ -400,6 +408,7 @@ substitute old new (Catch body) = Catch (substitute old new body)
 
 rename :: Label -> Label -> Term -> Term
 rename _ _ Bottom = Bottom
+rename _ _ Top = Top
 rename _ _ literal@(Numeral _) = literal
 rename old new var@(Variable label)
   | label == old = Variable new
@@ -423,6 +432,7 @@ fresh usedLabels = case (find (`notElem` usedLabels) labels) of
 
 used :: Term -> [Label]
 used Bottom = []
+used Top = []
 used (Numeral _) = []
 used (Variable label) = [label]
 used (Lambda label _ term) = label : used term
