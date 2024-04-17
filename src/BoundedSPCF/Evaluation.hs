@@ -74,6 +74,8 @@ eval (Apply lterm rterm) = do
             ++ show env
         ]
       local (const newEnv) (eval newBody)
+    Top -> return Top
+    Bottom -> return Bottom
     _ ->
       throwError $
         "Error while evaluating application - "
@@ -138,6 +140,10 @@ eval (Case num prod) = do
             ++ " as a single element product"
         ]
       eval term
+    (Top, _) -> return Top
+    (_, Top) -> return Top
+    (Bottom, _) -> return Bottom
+    (_, Bottom) -> return Bottom
     _ ->
       throwError $
         "Error while evaluating "
@@ -154,6 +160,7 @@ eval (Catch body) = do
   result <- case catchResult of
     Constant (Numeral i) n -> return $ Numeral (i + n)
     Constant Bottom _ -> return Bottom
+    Constant Top _ -> return Top
     Constant term _ ->
       throwError $
         "This case should not exist. "
