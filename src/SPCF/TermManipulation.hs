@@ -4,6 +4,8 @@ import Data.List (elemIndex, find)
 import SPCF.AST (Label, Term (..))
 
 normalise :: Term info -> Term info
+normalise term@(Bottom _) = term
+normalise term@(Top _) = term
 normalise num@(Numeral {}) = num
 normalise err@(Error {}) = err
 normalise var@(Variable {}) = var
@@ -19,8 +21,14 @@ normalise (Pred inf term) = Pred inf $ normalise term
 normalise (If0 inf cond tt ff) = If0 inf (normalise cond) (normalise tt) (normalise ff)
 normalise (Catch inf body) = Catch inf (normalise body)
 normalise (YComb inf body) = YComb inf (normalise body)
+normalise (Iter inf body) = Iter inf (normalise body)
+normalise (Pair inf lhs rhs) = Pair inf (normalise lhs) (normalise rhs)
+normalise (Fst inf term) = Fst inf (normalise term)
+normalise (Snd inf term) = Snd inf (normalise term)
 
 substitute :: Label -> Term info -> Term info -> Term info
+substitute _ _ term@(Bottom _) = term
+substitute _ _ term@(Top _) = term
 substitute _ _ literal@Numeral {} = literal
 substitute old new var@(Variable _ label)
   | label == old = new
@@ -38,10 +46,16 @@ substitute old new (If0 inf cond iftrue iffalse) =
   let sub = substitute old new
    in (If0 inf (sub cond) (sub iftrue) (sub iffalse))
 substitute old new (YComb inf body) = YComb inf (substitute old new body)
+substitute old new (Iter inf body) = Iter inf (substitute old new body)
 substitute _ _ err@(Error {}) = err
 substitute old new (Catch inf body) = Catch inf (substitute old new body)
+substitute old new (Pair inf lhs rhs) = Pair inf (substitute old new lhs) (substitute old new rhs)
+substitute old new (Fst inf term) = Fst inf (substitute old new term)
+substitute old new (Snd inf term) = Snd inf (substitute old new term)
 
 rename :: Label -> Label -> Term info -> Term info
+rename _ _ term@(Bottom _) = term
+rename _ _ term@(Top _) = term
 rename _ _ literal@(Numeral {}) = literal
 rename old new var@(Variable inf label)
   | label == old = Variable inf new
@@ -56,8 +70,12 @@ rename old new (If0 inf cond iftrue iffalse) =
   let r = rename old new
    in If0 inf (r cond) (r iftrue) (r iffalse)
 rename old new (YComb inf body) = YComb inf (rename old new body)
+rename old new (Iter inf body) = Iter inf (rename old new body)
 rename _ _ err@(Error {}) = err
 rename old new (Catch inf body) = Catch inf (rename old new body)
+rename old new (Pair inf lhs rhs) = Pair inf (rename old new lhs) (rename old new rhs)
+rename old new (Fst inf term) = Fst inf (rename old new term)
+rename old new (Snd inf term) = Snd inf (rename old new term)
 
 fresh :: [Label] -> Label
 fresh usedLabels = case (find (`notElem` usedLabels) possibleLabels) of
@@ -65,6 +83,8 @@ fresh usedLabels = case (find (`notElem` usedLabels) possibleLabels) of
   Nothing -> error "Error, somehow all variable names have been used. This shouldn't be possible."
 
 used :: Term info -> [Label]
+used (Top _) = []
+used (Bottom _) = []
 used (Numeral _ _) = []
 used (Variable _ label) = [label]
 used (Lambda _ label _ term) = label : used term
@@ -73,8 +93,12 @@ used (Succ _ body) = used body
 used (Pred _ body) = used body
 used (If0 _ cond iftrue iffalse) = used cond ++ used iftrue ++ used iffalse
 used (YComb _ body) = used body
+used (Iter _ body) = used body
 used (Error {}) = []
 used (Catch _ term) = used term
+used (Pair _ lhs rhs) = used lhs ++ used rhs
+used (Fst _ term) = used term
+used (Snd _ term) = used term
 
 possibleLabels :: [Label]
 possibleLabels = alphabetLazyList ++ alphaNumsLazyList

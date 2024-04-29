@@ -8,7 +8,7 @@ module Frontend.Parser(parseProg) where
 
 import Frontend.Lexer
 import SPCF.AST (Error(..), Label, Term(..), Type(..), termInfo)
-import SPCF.Interpreter(Statement(..), Prog(..),)
+import SPCF.Interpreter(Statement(..), Program(..),)
 }
 
 %name parse
@@ -125,6 +125,6 @@ happyError (Token p t) =
   alexError' p ("parse error at token '" ++ unLex t ++ "'")
 
 
-parseProg :: FilePath -> String -> Either String (SPCF.Interpreter.Prog AlexPosn)
+parseProg :: FilePath -> String -> Either String (SPCF.Interpreter.Program AlexPosn)
 parseProg = runAlex' parse
 }

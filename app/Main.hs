@@ -10,8 +10,8 @@ main = do
   args <- getArgs
   let filepath =
         ( case args of
-            [] -> error "Error: no input file"
             [f] -> f
+            [] -> error "Error: no input file"
             _ -> error "expected max. 1 argument"
         )
   src <- readFile filepath
