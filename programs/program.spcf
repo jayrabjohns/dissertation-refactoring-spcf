@@ -1,0 +1,27 @@
+addLeftTerm = \f:Nat->Nat->Nat => \x:Nat => \y:Nat => if0 x then y else (succ (f (pred x) y));
+add = \x:Nat => \y:Nat => (fix addLeftTerm) x y;
+
+mulTerm = \f:Nat->Nat->Nat => 
+          \x:Nat => 
+          \y:Nat => 
+            if0 y 
+              then x 
+              else (add x (f x (pred y)));
+
+mul = \x: Nat => \y:Nat => (fix mulTerm) x (pred y);
+
+factorial = \f: Nat->Nat => \n:Nat => if0 n then 1 else (mul n (f (pred n)));
+fact = \n: Nat => (fix factorial) n;
+
+eval (fact 5);
+
+addLeftTerm = \f:Nat->Nat->Nat => 
+              \x:Nat => 
+              \y:Nat => if0 x then y else (succ (f (pred x) y));
+add = \x:Nat => \y:Nat => (fix addLeftTerm) x y;
+
+eval (add error1 error2);
+
+addRightTerm = \f:Nat->Nat->Nat => \x:Nat => \y:Nat => if0 y then x else (succ (f x (pred y)));
+add' = \x:Nat => \y:Nat => (fix addRightTerm) x y;
+eval (add' error1 error2);

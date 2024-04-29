@@ -30,7 +30,7 @@ tokens :-
   catch                         { lex' TokenCatch }
   fix                           { lex' TokenFix }
   iszero                        { lex' TokenIszero }
-  if                            { lex' TokenIf }
+  if0                           { lex' TokenIf }
   then                          { lex' TokenThen }
   else                          { lex' TokenElse }
   eval                          { lex' TokenEval }
@@ -112,7 +112,7 @@ unLex TokenPred            = "pred"
 unLex TokenCatch           = "catch"
 unLex TokenIszero          = "iszero"
 unLex TokenFix             = "fix"
-unLex TokenIf              = "if"
+unLex TokenIf              = "if0"
 unLex TokenThen            = "then"
 unLex TokenElse            = "else"
 unLex TokenEval            = "eval"

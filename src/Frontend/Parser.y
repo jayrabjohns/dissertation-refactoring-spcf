@@ -77,8 +77,7 @@ Term :
   | if Term then Term else Term { SPCF.AST.If0 $1 $2 $4 $6 }
   | '\\' id TyBinder doublearrow Term {
     case $2 of
-      Token _ (TokenId id) ->
-        SPCF.AST.Lambda $1 id $3 $5 }
+      Token _ (TokenId id) -> SPCF.AST.Lambda $1 id $3 $5 }
 
 AppTerm :
   ATerm { $1 }
@@ -93,20 +92,17 @@ ATerm :
   '(' Term ')' { $2 }
   | natVal {
     case $1 of
-      Token info (TokenNat n) ->
-        SPCF.AST.Numeral info n }
+      Token info (TokenNat n) -> SPCF.AST.Numeral info n }
   | error1 { SPCF.AST.Error $1 SPCF.AST.Error1 }
   | error2 { SPCF.AST.Error $1 SPCF.AST.Error2 }
   | id {
     case $1 of
-      Token info (TokenId id) ->
-        SPCF.AST.Variable info id }
+      Token info (TokenId id) -> SPCF.AST.Variable info id }
 
 Statement :
   id Binder {
     case $1 of
-      Token info (TokenId id) ->
-        SPCF.Interpreter.Declare info id $2 }
+      Token info (TokenId id) -> SPCF.Interpreter.Declare info id $2 }
   | eval Term { SPCF.Interpreter.Evaluate $1 $2 }
 
 TyBinder :

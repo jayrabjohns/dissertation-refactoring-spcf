@@ -22,9 +22,13 @@ main = do
   _ <- either fail return types
 
   let results = interpretProg program
-  _ <- traverse (print . showResult) results
+  _ <- traverse (uncurry showResult) results
   return ()
 
-showResult :: Result (Term info) -> String
-showResult (Left err) = "Error: " ++ err
-showResult (Right term) = show term
+showResult :: Result (Term info) -> [String] -> IO ()
+showResult term logs = do
+  _ <- traverse putStrLn logs
+  _ <- print $ case term of
+    (Left err) -> "Error: " ++ err
+    (Right body) -> show body
+  return ()
