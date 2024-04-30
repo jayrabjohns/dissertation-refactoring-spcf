@@ -87,6 +87,8 @@ unit = Product []
 -- A family of n projections πᵢ: Tⁿ => T
 -- π₀(t) = I where I is the empty product
 projection :: Term -> Int -> Term
+projection (BinProduct lhs _) 0 = lhs
+projection (BinProduct _ rhs) 1 = rhs
 projection (Product prod) i =
   case drop i prod of
     x : _ -> x

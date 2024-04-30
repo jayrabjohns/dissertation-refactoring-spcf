@@ -15,15 +15,14 @@ tests =
       -- countProductLengthOfOne,
       -- countBinaryProductLength,
       -- countProductLengthOfConstant
-      -- injHasCorrectType0
       -- injHasCorrectType1
       -- injHasCorrectType2
       -- injHasCorrectType3
-      projHasCorrectType1
+      -- projHasCorrectType1
       -- projHasCorrectType2
       -- projHasCorrectType3
       -- retractIsObservationallyEquivelant2
-      -- retractIsObservationallyEquivelant3
+      retractIsObservationallyEquivelant3
     ]
 
 -- countProductLength :: Test
@@ -66,20 +65,20 @@ tests =
 --   TestCase $
 --     assertEqual "should correctly determine number of function arguments" expected numArgs
 
-injHasCorrectType0 :: Test
-injHasCorrectType0 = do
-  let f =
-        Lambda "p" (Cross Nat 0) $
-          Case
-            (Case (Numeral 0) (Variable "p"))
-            (Product (Bottom <$ numerals))
-  let expectedType = Unit
-  let injType = typeof' $ inj f
-  TestCase $
-    assertEqual
-      "should type nullary case for inj"
-      expectedType
-      injType
+-- injHasCorrectType0 :: Test
+-- injHasCorrectType0 = do
+--   let f =
+--         Lambda "p" (Cross Nat 0) $
+--           Case
+--             (Case (Numeral 0) (Variable "p"))
+--             (Product (Bottom <$ numerals))
+--   let expectedType = Unit
+--   let injType = typeof' $ inj f
+--   TestCase $
+--     assertEqual
+--       "should type nullary case for inj"
+--       expectedType
+--       injType
 
 injHasCorrectType1 :: Test
 injHasCorrectType1 = do
@@ -106,7 +105,7 @@ injHasCorrectType2 = do
   let expectedInjFType =
         Pair Nat $
           Cross
-            (Pair Nat $ Cross Unit upperBound)
+            (Pair Nat $ Cross (Unit :-> Empty) upperBound)
             upperBound
   let expectedInjTermFType =
         ((Cross Nat 2) :-> Empty)
@@ -131,7 +130,7 @@ injHasCorrectType2 = do
     ]
 
 -- | Test that inj fully trasnforms a term of type order 3
--- | and that correponding injTerm  eturns the correct type
+-- | and that the correponding injTerm returns the correct type
 -- | for a single step.
 injHasCorrectType3 :: Test
 injHasCorrectType3 = do
@@ -140,7 +139,9 @@ injHasCorrectType3 = do
           Case
             (Case (Numeral 1) (Variable "p"))
             (Product (Bottom <$ numerals))
-  let innerInjType = Pair Nat (Cross (Pair Nat (Cross Unit upperBound)) upperBound)
+  let innerInjType =
+        Pair Nat $
+          Cross (Pair Nat (Cross (Unit :-> Empty) upperBound)) upperBound
   let expectedInjFType = Pair Nat (Cross innerInjType upperBound)
   let expectedInjTermFType =
         ((Cross Nat 3) :-> Empty)
@@ -171,45 +172,12 @@ projHasCorrectType1 = do
           Case
             (Case (Numeral 0) (Variable "p"))
             (Product (Bottom <$ numerals))
-  let continuationsType = Cross (Nat :-> Empty) upperBound
   let expectedProjTermType =
         (Pair Nat (Cross (Unit :-> Empty) upperBound))
           :-> (Cross Nat 1 :-> Empty)
-  let expectedAffineType = typeof' f
+  let fType = typeof' f
 
-  let injTermF = injTerm (typeof' f)
-  let injF = Apply injTermF f
-  let projTermF = projTerm (typeof' injF)
-  let projTermType = typeof' projTermF
-
-  -- let affineF = proj . inj $ f
-  -- let affineFType = typeof' affineF
-
-  TestList
-    [ TestCase $
-        assertEqual
-          "Proj term doesn't have the correct type"
-          expectedProjTermType
-          projTermType -- ,
-          -- TestCase $
-          --   assertEqual
-          --     "The projection of f should have the same type as f"
-          --     expectedAffineType
-          --     affineFType
-    ]
-
-projHasCorrectType2 :: Test
-projHasCorrectType2 = do
-  let f =
-        Lambda "p" (Cross Nat 2) $
-          Case
-            (Case (Numeral 1) (Variable "p"))
-            (Product (Bottom <$ numerals))
-  let continuationsType = Cross (Nat :-> Empty) upperBound
-  let expectedProjTermType = (Pair Nat continuationsType) :-> (Cross Nat 2 :-> Empty)
-  let expectedAffineType = typeof' f
-
-  let injTermF = injTerm (typeof' f)
+  let injTermF = injTerm fType
   let injF = Apply injTermF f
   let projTermF = projTerm (typeof' injF)
   let projTermType = typeof' projTermF
@@ -226,7 +194,41 @@ projHasCorrectType2 = do
       TestCase $
         assertEqual
           "The projection of f should have the same type as f"
-          expectedAffineType
+          fType
+          affineFType
+    ]
+
+projHasCorrectType2 :: Test
+projHasCorrectType2 = do
+  let f =
+        Lambda "p" (Cross Nat 2) $
+          Case
+            (Case (Numeral 1) (Variable "p"))
+            (Product (Bottom <$ numerals))
+  let fType = typeof' f
+  let expectedInjType =
+        Pair Nat $
+          Cross ((Cross Nat 1 :-> Empty)) upperBound
+  let expectedProjTermType = expectedInjType :-> (Cross Nat 2 :-> Empty)
+
+  -- let injTermF = injTerm fType
+  let injF = inj' f
+  let projTermF = projTerm (typeof' injF)
+  let projTermType = typeof' projTermF
+
+  let affineF = (proj . inj) f
+  let affineFType = typeof' affineF
+
+  TestList
+    [ TestCase $
+        assertEqual
+          "Proj term doesn't have the correct type"
+          expectedProjTermType
+          projTermType,
+      TestCase $
+        assertEqual
+          "The projection of f should have the same type as f"
+          fType
           affineFType
     ]
 
@@ -237,31 +239,15 @@ projHasCorrectType3 = do
           Case
             (Case (Numeral 1) (Variable "p"))
             (Product (Bottom <$ numerals))
-
-  let continuationsType = Cross (Cross Nat 2 :-> Empty) upperBound
-  let expectedProjTermType = (Pair Nat continuationsType) :-> (Cross Nat 3 :-> Empty)
-  let expectedAffineType = typeof' f
-
-  let injTermF = injTerm (typeof' f)
-  let injF = Apply injTermF f
-  let projTermF = projTerm (typeof' injF)
-  let projTermType = typeof' projTermF
-
-  let affineF = proj . inj $ f
+  let fType = typeof' f
+  let affineF = (proj . inj) f
   let affineFType = typeof' affineF
 
-  TestList
-    [ TestCase $
-        assertEqual
-          "Proj term doesn't have the correct type"
-          expectedProjTermType
-          projTermType,
-      TestCase $
-        assertEqual
-          "The projection of f should have the same type as f"
-          expectedAffineType
-          affineFType
-    ]
+  TestCase $
+    assertEqual
+      "The projection of f should have the same type as f"
+      fType
+      affineFType
 
 retractIsObservationallyEquivelant2 :: Test
 retractIsObservationallyEquivelant2 = do
@@ -284,7 +270,7 @@ retractIsObservationallyEquivelant3 = do
           Case
             (Case (Numeral 1) (Variable "p"))
             (Product (Bottom <$ numerals))
-  let affineF = proj . inj $ f
+  let affineF = (proj . inj) f
   let allArgCombinations =
         [ Product [x, y, z]
           | x <- numerals,

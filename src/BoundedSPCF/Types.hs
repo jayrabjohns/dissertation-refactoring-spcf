@@ -71,6 +71,7 @@ typeof term@(Fst body) = do
       if n >= 1
         then return $ trace ("[" ++ show term ++ "]: " ++ show fstType) fstType
         else error $ "Cannot take π1 on the type " ++ show bodyType
+    (Pair typ _) -> return $ trace ("[" ++ show term ++ "]: " ++ show typ) typ
     wrongType -> error $ "Cannot take π1 on the type " ++ show wrongType
 typeof term@(Snd body) = do
   bodyType <- typeof body
@@ -79,6 +80,7 @@ typeof term@(Snd body) = do
       if n >= 2
         then return $ trace ("[" ++ show term ++ "]: " ++ show typ) typ
         else error $ "Cannot take π2 on the type " ++ show bodyType
+    (Pair _ typ) -> return $ trace ("[" ++ show term ++ "]: " ++ show typ) typ
     wrongType -> error $ "Cannot take π2 on the type " ++ show wrongType
 typeof term@(Case n p) = do
   numType <- typeof n

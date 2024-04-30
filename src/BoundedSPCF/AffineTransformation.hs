@@ -16,8 +16,8 @@ inj f =
   -- trace ("about to inj " ++ show f) $
   let fType = typeof' f
    in trace ("about to inj type " ++ show fType) $ case fType of
-        (Unit :-> Empty) -> unit
-        (Cross _ 0 :-> Empty) -> unit
+        -- (Unit :-> Empty) -> unit
+        (Cross _ 1 :-> Empty) -> normalise $ Apply (injTerm fType) f -- Lambda "x" Unit Bottom -- unit
         -- (Cross Nat 1 :-> Empty) -> normalise $ Apply (injTerm fType) f
         _ ->
           let injF = normalise $ Apply (injTerm fType) f
@@ -52,14 +52,12 @@ injTerm ftype@((Cross _ 1) :-> Empty) =
   Lambda "f" ftype $
     Case (Numeral 0) $
       Product
-        [ BinProduct
-            (Numeral 0)
-            ( Product
-                [ Lambda "empty" Unit $
-                    Apply (Variable "f") (Product [j])
-                  | j <- numerals
-                ]
-            )
+        [ BinProduct (Numeral 0) $
+            Product
+              [ Lambda "empty" Unit $
+                  Apply (Variable "f") (Product [j])
+                | j <- numerals
+              ]
         ]
 injTerm ftype@((Cross xtype typeOrder) :-> Empty) =
   let strictIndex = Catch $ Variable "f"
@@ -104,14 +102,19 @@ proj Bottom = Bottom
 proj term =
   let typ = typeof' term
    in trace ("about to proj on type " ++ show typ) $ case typ of
+        -- (Cross {} :-> Empty) -> error ("think were done. term: " ++ show term) -- trace "done" $ normalise term
+        Pair Nat (Cross (Unit :-> Empty) _) -> trace "base case" $ normalise $ Apply (projTerm typ {-(Pair Nat (Cross (Unit :-> Empty) n))-}) term
         --  (Cross _ (Cross _ (_ :-> Empty))) -> trace ("1about to apply a proj on " ++ show term) $ normalise $ Apply (projTerm typ) term
         -- (Pair Nat (Cross Unit _)) -> trace ("1about to apply a proj on " ++ show term) $ normalise $ Apply (projTerm typ) term
         -- (Pair Nat (Cross (Cross _ _ :-> Empty) _)) -> trace ("2about to apply a proj on " ++ show term) $ normalise $ Apply (projTerm typ) term
-        _ -> case term of
+        Pair Nat (Cross ((Cross argType numArgs) :-> Empty) _) -> trace ("This is a function " ++ show typ) $ normalise $ Apply (projTerm typ) term
+        Pair Nat (Cross (Pair {}) _) -> case term of
           Case n (Product pairs) ->
             let f = Product $ aux <$> pairs
              in trace ("3about to apply a proj on " ++ show term) $ proj $ Case n f
-          _ -> error "infite loop" -- trace ("not about to apply proj to term with type " ++ show typ ++ " and definition " ++ show term) $ normalise term -- error $ "Cannot project term " ++ show term
+          x@(Lambda {}) -> x
+          wrongTerm -> error $ "infite loop, not applying to " ++ show wrongTerm -- trace ("not about to apply proj to term with type " ++ show typ ++ " and definition " ++ show term) $ normalise term -- error $ "Cannot project term " ++ show term
+        _ -> error $ "not sure what to say, the term has type " ++ show typ
   where
     aux (BinProduct i (Product conts)) = BinProduct i (Product $ proj <$> conts)
     aux badTerm =
@@ -130,10 +133,18 @@ proj' term =
 projTerm :: Type -> Term
 projTerm typ@(Pair Nat (Cross (Unit :-> Empty) _)) =
   Lambda "tuple" typ $
-    Lambda "nextargs" Unit $
+    Lambda "nextargs" (Cross Nat 1) $
       Case (Numeral 0) $
-        Product [Case (Numeral 0) (Product [Bottom])]
-projTerm typ@(Pair Nat (Cross ((Cross contArgType numConts) :-> Empty) _)) =
+        Product
+          [ Case
+              (projection (Variable "nextargs") 0)
+              ( Product
+                  [ Apply (projection (Snd (Variable "tuple")) j) unit
+                    | j <- [0 .. upperBound - 1]
+                  ]
+              )
+          ]
+projTerm typ@(Pair Nat (Cross ((Cross contArgType m) :-> Empty) _)) =
   Lambda "tuple" typ $
     Lambda "nextargs" fArgsType $
       trace ("\nconstructing proj term with type \\tuple: " ++ show typ ++ " \\nextargs: " ++ show fArgsType ++ ". ...") $
@@ -152,9 +163,7 @@ projTerm typ@(Pair Nat (Cross ((Cross contArgType numConts) :-> Empty) _)) =
     providedArgs :: Product
     providedArgs = [projection (Variable "nextargs") i | i <- [0 .. m]]
 
-    fArgsType = Cross contArgType (numConts + 1)
-    m :: Int
-    m = numConts - 1
+    fArgsType = Cross contArgType (m + 1)
 
     n :: Int
     n = upperBound - 1
