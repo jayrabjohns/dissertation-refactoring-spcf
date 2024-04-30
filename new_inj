@@ -49,3 +49,202 @@ Inj f := \"f".
 Apply 
     (\"c". Case <
             Case <1, <1, <(\"a". \"b". Case <b, <1, (I), (Case <1, a>), (Case <2, a>)>>), (\"a". \"b". Case <b, <(I), 1, (Case <1, a>), (Case <2, a>)>>), (\"a". \"b". Case <b, <(I), (Case <1, a>), 1, (Case <2, a>)>>)>>>, <(Case <I, <((I) <(Case <1, c>), (Case <2, c>)>), ((Case <1, Case <2, <1, <(\"a". \"b". Case <b, <1, (I), (Case <1, a>), (Case <2, a>)>>), (\"a". \"b". Case <b, <(I), 1, (Case <1, a>), (Case <2, a>)>>), (\"a". \"b". Case <b, <(I), (Case <1, a>), 1, (Case <2, a>)>>)>>>>) <(I), (Case <2, c>)>)>>), (Case <Case <1, c>, <((I) <(Case <1, c>), (Case <2, c>)>), ((Case <1, Case <2, <1, <(\"a". \"b". Case <b, <1, (I), (Case <1, a>), (Case <2, a>)>>), (\"a". \"b". Case <b, <(I), 1, (Case <1, a>), (Case <2, a>)>>), (\"a". \"b". Case <b, <(I), (Case <1, a>), 1, (Case <2, a>)>>)>>>>) <(I), (Case <2, c>)>)>>), (Case <Case <2, c>, <((I) <(Case <1, c>), (Case <2, c>)>), ((Case <1, Case <2, <1, <(\"a". \"b". Case <b, <1, (I), (Case <1, a>), (Case <2, a>)>>), (\"a". \"b". Case <b, <(I), 1, (Case <1, a>), (Case <2, a>)>>), (\"a". \"b". Case <b, <(I), (Case <1, a>), 1, (Case <2, a>)>>)>>>>) <(I), (Case <2, c>)>)>>)>>) [<1, 2, 3>/"c"] with new environment
+
+
+
+f = \p:(NatxNat) => Case <Case <1, p>, <⊥, ⊥>>
+
+proj(inj(f)) = 
+\b:(NatxNat) => 
+  Case <
+    π1(Case <Catch (\p:(NatxNat) => Case <Case <1, p>, <⊥, ⊥>>), 
+        <<0, <(\a:Nat => Case <Case <1, <0, (Case <0, a>)>>, <⊥, ⊥>>), (\a:Nat => Case <Case <1, <1, (Case <0, a>)>>, <⊥, ⊥>>)>>,
+        <1, <(\a:Nat => Case <Case <1, <(Case <0, a>), 0>>, <⊥, ⊥>>), (\a:Nat => Case <Case <1, <(Case <0, a>), 1>>, <⊥, ⊥>>)>>>>
+      ),
+    <(Case <Case <0, b>,
+      <((Case <0, π2(Case <Catch (\p:(NatxNat) => Case <Case <1, p>, <⊥, ⊥>>), 
+          <<0, <(\a:Nat => Case <Case <1, <0, (Case <0, a>)>>, <⊥, ⊥>>), (\a:Nat => Case <Case <1, <1, (Case <0, a>)>>, <⊥, ⊥>>)>>, 
+          <1, <(\a:Nat => Case <Case <1, <(Case <0, a>), 0>>, <⊥, ⊥>>), (\a:Nat => Case <Case <1, <(Case <0, a>), 1>>, <⊥, ⊥>>)>>>>)>
+        ) <(Case <1, b>)>
+        ), 
+        ((Case <1, π2(Case <Catch (\p:(NatxNat) => Case <Case <1, p>, <⊥, ⊥>>),
+          <<0, <(\a:Nat => Case <Case <1, <0, (Case <0, a>)>>, <⊥, ⊥>>), (\a:Nat => Case <Case <1, <1, (Case <0, a>)>>, <⊥, ⊥>>)>>,
+          <1, <(\a:Nat => Case <Case <1, <(Case <0, a>), 0>>, <⊥, ⊥>>), (\a:Nat => Case <Case <1, <(Case <0, a>), 1>>, <⊥, ⊥>>)>>>>)>
+        ) <(Case <1, b>)>
+        )>>
+    ),
+    (Case <Case <1, b>,
+      <((Case <0, π2(Case <Catch (\p:(NatxNat) => Case <Case <1, p>, <⊥, ⊥>>),
+          <<0, <(\a:Nat => Case <Case <1, <0, (Case <0, a>)>>, <⊥, ⊥>>), (\a:Nat => Case <Case <1, <1, (Case <0, a>)>>, <⊥, ⊥>>)>>,
+          <1, <(\a:Nat => Case <Case <1, <(Case <0, a>), 0>>, <⊥, ⊥>>), (\a:Nat => Case <Case <1, <(Case <0, a>), 1>>, <⊥, ⊥>>)>>>>)>
+        ) <(Case <0, b>)>
+        ),
+        ((Case <1, π2(Case <Catch (\p:(NatxNat) => Case <Case <1, p>, <⊥, ⊥>>),
+          <<0, <(\a:Nat => Case <Case <1, <0, (Case <0, a>)>>, <⊥, ⊥>>), (\a:Nat => Case <Case <1, <1, (Case <0, a>)>>, <⊥, ⊥>>)>>,
+          <1, <(\a:Nat => Case <Case <1, <(Case <0, a>), 0>>, <⊥, ⊥>>), (\a:Nat => Case <Case <1, <(Case <0, a>), 1>>, <⊥, ⊥>>)>>>>)>
+        ) <(Case <0, b>)>
+        )>>
+    )>>
+
+
+
+
+f = \p:(NatxNat) => Case <Case <1, p>, <$\bot$, $\bot$>>
+
+proj(inj(f)) = 
+\b:(NatxNat) => 
+  Case <
+    $\pi$1(Case <Catch (\p:(NatxNat) => Case <Case <1, p>, <$\bot$, $\bot$>>), 
+        <<0, <(\a:Nat => Case <Case <1, <0, (Case <0, a>)>>, <$\bot$, $\bot$>>), (\a:Nat => Case <Case <1, <1, (Case <0, a>)>>, <$\bot$, $\bot$>>)>>,
+        <1, <(\a:Nat => Case <Case <1, <(Case <0, a>), 0>>, <$\bot$, $\bot$>>), (\a:Nat => Case <Case <1, <(Case <0, a>), 1>>, <$\bot$, $\bot$>>)>>>>
+      ),
+    <(Case <Case <0, b>,
+      <((Case <0, $\pi$2(Case <Catch (\p:(NatxNat) => Case <Case <1, p>, <$\bot$, $\bot$>>), 
+          <<0, <(\a:Nat => Case <Case <1, <0, (Case <0, a>)>>, <$\bot$, $\bot$>>), (\a:Nat => Case <Case <1, <1, (Case <0, a>)>>, <$\bot$, $\bot$>>)>>, 
+          <1, <(\a:Nat => Case <Case <1, <(Case <0, a>), 0>>, <$\bot$, $\bot$>>), (\a:Nat => Case <Case <1, <(Case <0, a>), 1>>, <$\bot$, $\bot$>>)>>>>)>
+        ) <(Case <1, b>)>
+        ), 
+        ((Case <1, $\pi$2(Case <Catch (\p:(NatxNat) => Case <Case <1, p>, <$\bot$, $\bot$>>),
+          <<0, <(\a:Nat => Case <Case <1, <0, (Case <0, a>)>>, <$\bot$, $\bot$>>), (\a:Nat => Case <Case <1, <1, (Case <0, a>)>>, <$\bot$, $\bot$>>)>>,
+          <1, <(\a:Nat => Case <Case <1, <(Case <0, a>), 0>>, <$\bot$, $\bot$>>), (\a:Nat => Case <Case <1, <(Case <0, a>), 1>>, <$\bot$, $\bot$>>)>>>>)>
+        ) <(Case <1, b>)>
+        )>>
+    ),
+    (Case <Case <1, b>,
+      <((Case <0, $\pi$2(Case <Catch (\p:(NatxNat) => Case <Case <1, p>, <$\bot$, $\bot$>>),
+          <<0, <(\a:Nat => Case <Case <1, <0, (Case <0, a>)>>, <$\bot$, $\bot$>>), (\a:Nat => Case <Case <1, <1, (Case <0, a>)>>, <$\bot$, $\bot$>>)>>,
+          <1, <(\a:Nat => Case <Case <1, <(Case <0, a>), 0>>, <$\bot$, $\bot$>>), (\a:Nat => Case <Case <1, <(Case <0, a>), 1>>, <$\bot$, $\bot$>>)>>>>)>
+        ) <(Case <0, b>)>
+        ),
+        ((Case <1, $\pi$2(Case <Catch (\p:(NatxNat) => Case <Case <1, p>, <$\bot$, $\bot$>>),
+          <<0, <(\a:Nat => Case <Case <1, <0, (Case <0, a>)>>, <$\bot$, $\bot$>>), (\a:Nat => Case <Case <1, <1, (Case <0, a>)>>, <$\bot$, $\bot$>>)>>,
+          <1, <(\a:Nat => Case <Case <1, <(Case <0, a>), 0>>, <$\bot$, $\bot$>>), (\a:Nat => Case <Case <1, <(Case <0, a>), 1>>, <$\bot$, $\bot$>>)>>>>)>
+        ) <(Case <0, b>)>
+        )>>
+    )>>
+
+
+inj f = 
+Case <
+  Catch (\p:(NatxNatxNat) => Case <Case <1, p>, <⊥, ⊥>>), 
+  <<0, 
+    <(Case <
+        Catch (\a:(NatxNat) => Case <Case <1, <0, (Case <0, a>), (Case <1, a>)>>, <⊥, ⊥>>),
+        <<0, 
+          <(\b:Nat => Case <Case <1, <0, (Case <0, <0, (Case <0, b>)>>), (Case <1, <0, (Case <0, b>)>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <0, (Case <0, <1, (Case <0, b>)>>), (Case <1, <1, (Case <0, b>)>>)>>, <⊥, ⊥>>)>>,
+         <1, 
+          <(\b:Nat => Case <Case <1, <0, (Case <0, <(Case <0, b>), 0>>), (Case <1, <(Case <0, b>), 0>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <0, (Case <0, <(Case <0, b>), 1>>), (Case <1, <(Case <0, b>), 1>>)>>, <⊥, ⊥>>)>>
+      >>), 
+      (Case <
+        Catch (\a:(NatxNat) => Case <Case <1, <1, (Case <0, a>), (Case <1, a>)>>, <⊥, ⊥>>),
+        <<0, 
+          <(\b:Nat => Case <Case <1, <1, (Case <0, <0, (Case <0, b>)>>), (Case <1, <0, (Case <0, b>)>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <1, (Case <0, <1, (Case <0, b>)>>), (Case <1, <1, (Case <0, b>)>>)>>, <⊥, ⊥>>)>>,
+          <1, 
+          <(\b:Nat => Case <Case <1, <1, (Case <0, <(Case <0, b>), 0>>), (Case <1, <(Case <0, b>), 0>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <1, (Case <0, <(Case <0, b>), 1>>), (Case <1, <(Case <0, b>), 1>>)>>, <⊥, ⊥>>)>>
+      >>)>>,
+   <1,
+    <(Case <
+        Catch (\a:(NatxNat) => Case <Case <1, <(Case <0, a>), 0, (Case <1, a>)>>, <⊥, ⊥>>),
+        <<0, 
+          <(\b:Nat => Case <Case <1, <(Case <0, <0, (Case <0, b>)>>), 0, (Case <1, <0, (Case <0, b>)>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <(Case <0, <1, (Case <0, b>)>>), 0, (Case <1, <1, (Case <0, b>)>>)>>, <⊥, ⊥>>)>>,
+        <1, 
+          <(\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 0>>), 0, (Case <1, <(Case <0, b>), 0>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 1>>), 0, (Case <1, <(Case <0, b>), 1>>)>>, <⊥, ⊥>>)>>
+      >>),
+     (Case <
+        Catch (\a:(NatxNat) => Case <Case <1, <(Case <0, a>), 1, (Case <1, a>)>>, <⊥, ⊥>>), 
+        <<0, 
+          <(\b:Nat => Case <Case <1, <(Case <0, <0, (Case <0, b>)>>), 1, (Case <1, <0, (Case <0, b>)>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <(Case <0, <1, (Case <0, b>)>>), 1, (Case <1, <1, (Case <0, b>)>>)>>, <⊥, ⊥>>)>>,
+        <1, 
+          <(\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 0>>), 1, (Case <1, <(Case <0, b>), 0>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 1>>), 1, (Case <1, <(Case <0, b>), 1>>)>>, <⊥, ⊥>>)>>
+      >>)>>
+>>
+
+
+inj f = 
+Case <
+  Catch (\p:(NatxNatxNat) => Case <Case <1, p>, <⊥, ⊥>>),
+  <<0, 
+    <(Case <
+        Catch (\a:(NatxNat) => Case <Case <1, <0, (Case <0, a>), (Case <1, a>)>>, <⊥, ⊥>>),
+        <<0,
+          <(\b:Nat => Case <Case <1, <0, (Case <0, <0, (Case <0, b>)>>), (Case <1, <0, (Case <0, b>)>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <0, (Case <0, <1, (Case <0, b>)>>), (Case <1, <1, (Case <0, b>)>>)>>, <⊥, ⊥>>)>>, 
+         <1, 
+          <(\b:Nat => Case <Case <1, <0, (Case <0, <(Case <0, b>), 0>>), (Case <1, <(Case <0, b>), 0>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <0, (Case <0, <(Case <0, b>), 1>>), (Case <1, <(Case <0, b>), 1>>)>>, <⊥, ⊥>>)>>,
+         <2, 
+          <(\b:Nat => Case <Case <1, <0, (Case <0, <(Case <0, b>), 0>>), (Case <1, <(Case <0, b>), 0>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <0, (Case <0, <(Case <0, b>), 1>>), (Case <1, <(Case <0, b>), 1>>)>>, <⊥, ⊥>>)>>
+      >>), 
+      (Case <
+        Catch (\a:(NatxNat) => Case <Case <1, <1, (Case <0, a>), (Case <1, a>)>>, <⊥, ⊥>>),
+        <<0,
+          <(\b:Nat => Case <Case <1, <1, (Case <0, <0, (Case <0, b>)>>), (Case <1, <0, (Case <0, b>)>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <1, (Case <0, <1, (Case <0, b>)>>), (Case <1, <1, (Case <0, b>)>>)>>, <⊥, ⊥>>)>>,
+        <1, 
+          <(\b:Nat => Case <Case <1, <1, (Case <0, <(Case <0, b>), 0>>), (Case <1, <(Case <0, b>), 0>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <1, (Case <0, <(Case <0, b>), 1>>), (Case <1, <(Case <0, b>), 1>>)>>, <⊥, ⊥>>)>>,
+        <2, 
+          <(\b:Nat => Case <Case <1, <1, (Case <0, <(Case <0, b>), 0>>), (Case <1, <(Case <0, b>), 0>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <1, (Case <0, <(Case <0, b>), 1>>), (Case <1, <(Case <0, b>), 1>>)>>, <⊥, ⊥>>)>>
+      >>)>>,
+   <1, 
+    <(Case <
+        Catch (\a:(NatxNat) => Case <Case <1, <(Case <0, a>), 0, (Case <1, a>)>>, <⊥, ⊥>>),
+        <<0,
+          <(\b:Nat => Case <Case <1, <(Case <0, <0, (Case <0, b>)>>), 0, (Case <1, <0, (Case <0, b>)>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <(Case <0, <1, (Case <0, b>)>>), 0, (Case <1, <1, (Case <0, b>)>>)>>, <⊥, ⊥>>)>>,
+        <1, 
+          <(\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 0>>), 0, (Case <1, <(Case <0, b>), 0>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 1>>), 0, (Case <1, <(Case <0, b>), 1>>)>>, <⊥, ⊥>>)>>,
+        <2, 
+          <(\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 0>>), 0, (Case <1, <(Case <0, b>), 0>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 1>>), 0, (Case <1, <(Case <0, b>), 1>>)>>, <⊥, ⊥>>)>>
+      >>), 
+      (Case <
+        Catch (\a:(NatxNat) => Case <Case <1, <(Case <0, a>), 1, (Case <1, a>)>>, <⊥, ⊥>>),
+        <<0,
+          <(\b:Nat => Case <Case <1, <(Case <0, <0, (Case <0, b>)>>), 1, (Case <1, <0, (Case <0, b>)>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <(Case <0, <1, (Case <0, b>)>>), 1, (Case <1, <1, (Case <0, b>)>>)>>, <⊥, ⊥>>)>>,
+         <1,
+          <(\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 0>>), 1, (Case <1, <(Case <0, b>), 0>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 1>>), 1, (Case <1, <(Case <0, b>), 1>>)>>, <⊥, ⊥>>)>>,
+         <2,
+          <(\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 0>>), 1, (Case <1, <(Case <0, b>), 0>>)>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 1>>), 1, (Case <1, <(Case <0, b>), 1>>)>>, <⊥, ⊥>>)>>
+      >>)
+    >>, 
+   <2, 
+    <(Case <
+        Catch (\a:(NatxNat) => Case <Case <1, <(Case <0, a>), (Case <1, a>), 0>>, <⊥, ⊥>>),
+        <<0,
+          <(\b:Nat => Case <Case <1, <(Case <0, <0, (Case <0, b>)>>), (Case <1, <0, (Case <0, b>)>>), 0>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <(Case <0, <1, (Case <0, b>)>>), (Case <1, <1, (Case <0, b>)>>), 0>>, <⊥, ⊥>>)>>,
+         <1, 
+          <(\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 0>>), (Case <1, <(Case <0, b>), 0>>), 0>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 1>>), (Case <1, <(Case <0, b>), 1>>), 0>>, <⊥, ⊥>>)>>,
+         <2, 
+          <(\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 0>>), (Case <1, <(Case <0, b>), 0>>), 0>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 1>>), (Case <1, <(Case <0, b>), 1>>), 0>>, <⊥, ⊥>>)>>
+      >>),
+      (Case <
+        Catch (\a:(NatxNat) => Case <Case <1, <(Case <0, a>), (Case <1, a>), 1>>, <⊥, ⊥>>),
+        <<0,
+          <(\b:Nat => Case <Case <1, <(Case <0, <0, (Case <0, b>)>>), (Case <1, <0, (Case <0, b>)>>), 1>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <(Case <0, <1, (Case <0, b>)>>), (Case <1, <1, (Case <0, b>)>>), 1>>, <⊥, ⊥>>)>>,
+         <1, 
+          <(\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 0>>), (Case <1, <(Case <0, b>), 0>>), 1>>, <⊥, ⊥>>),
+           (\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 1>>), (Case <1, <(Case <0, b>), 1>>), 1>>, <⊥, ⊥>>)>>,
+         <2, 
+          <(\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 0>>), (Case <1, <(Case <0, b>), 0>>), 1>>, <⊥, ⊥>>), 
+           (\b:Nat => Case <Case <1, <(Case <0, <(Case <0, b>), 1>>), (Case <1, <(Case <0, b>), 1>>), 1>>, <⊥, ⊥>>)>>
+      >>)>>
+>>

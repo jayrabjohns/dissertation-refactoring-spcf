@@ -10,7 +10,7 @@ type Numeral = Int
 type Product = [Term]
 
 upperBound :: Numeral
-upperBound = 4
+upperBound = 2
 
 numerals :: [Term]
 numerals = Numeral <$> [0 .. upperBound - 1]

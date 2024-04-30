@@ -1,16 +1,47 @@
 module BoundedSPCF.AffineTransformation where
 
 import BoundedSPCF.AST (Product, Term (..), Type (..), insertProduct, projection, removeProduct, upperBound)
+import BoundedSPCF.TermManipulation (normalise)
 import BoundedSPCF.Types (typeof')
 import Debug.Trace (trace)
 
--- Take a term of the bounded SPCF and perform an injection into a 'tuple form'
---   which contains the index at which `f` is strict as well a series of
---   continuation functions for each possible value of the argument.
+-- | Inductively apply inj as originally defined by Laird until a funciton is
+-- | in tuple form, where a function is represented as the index at which
+-- | `f` is strict as well a series of continuation functions for each possible
+-- | value of the argument.
 inj :: Term -> Term
 inj Top = Top
 inj Bottom = Bottom
 inj f =
+  -- trace ("about to inj " ++ show f) $
+  let fType = typeof' f
+   in if isBaseType fType
+        then normalise f
+        else
+          let injF = normalise $ Apply (injTerm fType) f
+           in case injF of
+                (Case n (Product prod)) -> Case n (Product $ aux <$> prod)
+                Top -> Top
+                Bottom -> Bottom
+                _ -> error $ "Inj shouldn't be able to produce a term of this kind: " ++ show injF
+  where
+    aux (BinProduct i (Product conts)) = BinProduct i (Product $ inj <$> conts)
+    aux badTerm =
+      error $
+        "Inj term does not have expected structure."
+          ++ (" Expected a binary product but got a " ++ show badTerm)
+
+    isBaseType :: Type -> Bool
+    isBaseType (Nat :-> Empty) = True
+    isBaseType (lhs :-> rhs) = isBaseType lhs || isBaseType rhs
+    isBaseType (Cross lhs rhs) = isBaseType lhs || isBaseType rhs
+    isBaseType _ = False
+
+-- | Apply inj once without any care for the consequences.
+inj' :: Term -> Term
+inj' Top = Top
+inj' Bottom = Bottom
+inj' f =
   let fType = typeof' f
    in Apply (injTerm fType) f
 
@@ -50,10 +81,34 @@ injTerm typ =
       ++ "be of the form [(T1 X T1 X ...) => 0]. The provided term is of type "
       ++ show typ
 
+-- | Inductively apply proj, recovering the type structure from
+-- | a funciton in tuple form.
 proj :: Term -> Term
 proj Top = Top
 proj Bottom = Bottom
 proj term =
+  let typ = typeof' term
+   in trace ("about to proj on type " ++ show typ) $ case typ of
+        --  (Cross _ (Cross _ (_ :-> Empty))) -> trace ("1about to apply a proj on " ++ show term) $ normalise $ Apply (projTerm typ) term
+        (Nat `Cross` ((Nat :-> Empty) `Cross` _)) -> trace ("done " ++ show term) $ normalise $ Apply (projTerm typ) term
+        (Nat `Cross` (((Nat `Cross` _) :-> Empty) `Cross` _)) -> trace ("2about to apply a proj on " ++ show term) $ normalise $ Apply (projTerm typ) term
+        _ -> case term of
+          Case n (Product pairs) ->
+            let f = Product $ aux <$> pairs
+             in trace ("3about to apply a proj on " ++ show term) $ proj $ Case n f
+          _ -> error "infite loop" -- trace ("not about to apply proj to term with type " ++ show typ ++ " and definition " ++ show term) $ normalise term -- error $ "Cannot project term " ++ show term
+  where
+    aux (BinProduct i (Product conts)) = BinProduct i (Product $ proj <$> conts)
+    aux badTerm =
+      error $
+        "Proj term does not have expected structure."
+          ++ (" Expected a binary product but got a " ++ show badTerm)
+
+-- | Apply proj once without any care for the consequences.
+proj' :: Term -> Term
+proj' Top = Top
+proj' Bottom = Bottom
+proj' term =
   let typ = typeof' term
    in Apply (projTerm typ) term
 

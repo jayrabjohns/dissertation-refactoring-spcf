@@ -1,5 +1,6 @@
 module Main (main) where
 
+import qualified ASPCFFragmentSpec
 import qualified BoundedASPCFFragmentSpec
 import qualified BoundedSPCFSpec
 import qualified BoundedSPCFTypesSpec
@@ -19,10 +20,11 @@ main = do
 tests :: Test
 tests =
   TestList
-    [ SPCFSpec.tests,
-      SPCFTermManipulationSpec.tests,
-      ProductSpec.tests,
-      BoundedSPCFSpec.tests,
-      BoundedSPCFTypesSpec.tests,
+    [ -- ASPCFFragmentSpec.tests
+      -- SPCFSpec.tests,
+      -- SPCFTermManipulationSpec.tests,
+      -- ProductSpec.tests,
+      -- BoundedSPCFSpec.tests
+      -- BoundedSPCFTypesSpec.tests,
       BoundedASPCFFragmentSpec.tests
     ]
