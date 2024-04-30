@@ -156,9 +156,11 @@ eval (Case num prod) = do
 eval (Catch body) = do
   env <- ask
   let usedLabels = labels env
-  let catchResult = runCatch (catch body) usedLabels
+  let catchResult = runCatch (catch body) [] -- usedLabels
   result <- case catchResult of
-    Constant (Numeral i) n -> return $ Numeral (i + n)
+    Constant (Numeral i) n -> do
+      tell ["Catch on constant"]
+      return $ Numeral (i + n)
     Constant Bottom _ -> return Bottom
     Constant Top _ -> return Top
     Constant term _ ->
@@ -166,7 +168,9 @@ eval (Catch body) = do
         "This case should not exist. "
           ++ "Catch has returned the following term as a constant "
           ++ show term
-    ArgumentIndex i -> return $ Numeral i
+    ArgumentIndex i -> do
+      tell [("Catch on function -> stict at " ++ show i)]
+      return $ Numeral i
     Diverge msg -> throwError msg
 
   tell [show (Catch body) ++ " <-> term is strict at position " ++ show result]

@@ -59,11 +59,11 @@ injTerm ftype@((Cross _ 1) :-> Empty) =
                 | j <- numerals
               ]
         ]
-injTerm ftype@((Cross xtype typeOrder) :-> Empty) =
+injTerm ftype@((Cross argType mPlus1) :-> Empty) =
   let strictIndex = Catch $ Variable "f"
    in Lambda "f" ftype $
         Case strictIndex $
-          Product [BinProduct (Numeral i) (continuations i) | i <- [0 .. m + 1]]
+          Product [BinProduct (Numeral i) (continuations i) | i <- [0 .. m]]
   where
     -- A series of continuation functions for each value the argument could have
     continuations :: Int -> Term
@@ -71,7 +71,7 @@ injTerm ftype@((Cross xtype typeOrder) :-> Empty) =
 
     -- A continuation function for each argument of f for a given value
     continuation :: Int -> Int -> Term
-    continuation j i = Lambda "x" (Cross xtype (typeOrder - 1)) $ Apply (Variable "f") (args j i)
+    continuation j i = Lambda "x" (Cross argType m) $ Apply (Variable "f") (args j i)
 
     -- Value for f's strict argument along with placeholders for later
     args :: Int -> Int -> Term
@@ -79,11 +79,11 @@ injTerm ftype@((Cross xtype typeOrder) :-> Empty) =
 
     -- The rest of the arguemnts for f which can be applied at a later time
     otherArgs :: Product
-    otherArgs = [projection (Variable "x") k | k <- [0 .. m]]
+    otherArgs = [projection (Variable "x") k | k <- [0 .. m - 1]]
 
     -- f has m + 1 arguments,
     m :: Int
-    m = typeOrder - 2
+    m = mPlus1 - 1
 
     -- Upper bound for the underlying datatype in bounded SPCF
     n :: Int
@@ -107,12 +107,11 @@ proj term =
         --  (Cross _ (Cross _ (_ :-> Empty))) -> trace ("1about to apply a proj on " ++ show term) $ normalise $ Apply (projTerm typ) term
         -- (Pair Nat (Cross Unit _)) -> trace ("1about to apply a proj on " ++ show term) $ normalise $ Apply (projTerm typ) term
         -- (Pair Nat (Cross (Cross _ _ :-> Empty) _)) -> trace ("2about to apply a proj on " ++ show term) $ normalise $ Apply (projTerm typ) term
-        Pair Nat (Cross ((Cross argType numArgs) :-> Empty) _) -> trace ("This is a function " ++ show typ) $ normalise $ Apply (projTerm typ) term
+        Pair Nat (Cross (Cross Nat _ :-> Empty) _) -> trace ("This is a function " ++ show typ) $ normalise $ Apply (projTerm typ) term
         Pair Nat (Cross (Pair {}) _) -> case term of
-          Case n (Product pairs) ->
-            let f = Product $ aux <$> pairs
-             in trace ("3about to apply a proj on " ++ show term) $ proj $ Case n f
-          x@(Lambda {}) -> x
+          Case i (Product pairs) ->
+            let f = aux <$> pairs
+             in trace ("3about to apply a proj on " ++ show term) $ proj $ Case i (Product $ f)
           wrongTerm -> error $ "infite loop, not applying to " ++ show wrongTerm -- trace ("not about to apply proj to term with type " ++ show typ ++ " and definition " ++ show term) $ normalise term -- error $ "Cannot project term " ++ show term
         _ -> error $ "not sure what to say, the term has type " ++ show typ
   where
@@ -144,15 +143,16 @@ projTerm typ@(Pair Nat (Cross (Unit :-> Empty) _)) =
                   ]
               )
           ]
-projTerm typ@(Pair Nat (Cross ((Cross contArgType m) :-> Empty) _)) =
-  Lambda "tuple" typ $
-    Lambda "nextargs" fArgsType $
-      trace ("\nconstructing proj term with type \\tuple: " ++ show typ ++ " \\nextargs: " ++ show fArgsType ++ ". ...") $
+projTerm tupleType@(Pair Nat (Cross ((Cross contArgType m) :-> Empty) _)) =
+  Lambda "tuple" tupleType $
+    Lambda "nextargs" nextArgsTyp $
+      trace ("\nconstructing proj term with type \\tuple: " ++ show tupleType ++ " \\nextargs: " ++ show nextArgsTyp ++ ". ...") $
         let strictIndex = Fst (Variable "tuple")
             strictArg = \i -> projection (Variable "nextargs") i
          in Case strictIndex $
               Product [Case (strictArg i) (applications i) | i <- [0 .. m]]
   where
+    -- n - 1 applications
     applications :: Int -> Term
     applications i =
       let continuations = Snd (Variable "tuple")
@@ -160,10 +160,11 @@ projTerm typ@(Pair Nat (Cross ((Cross contArgType m) :-> Empty) _)) =
           missingArgs = Product $ removeProduct (trace ("nextargs = " ++ show providedArgs) providedArgs) i
        in Product [Apply (cont j) missingArgs | j <- [0 .. n]]
 
+    -- m + 1 arguments for
     providedArgs :: Product
     providedArgs = [projection (Variable "nextargs") i | i <- [0 .. m]]
 
-    fArgsType = Cross contArgType (m + 1)
+    nextArgsTyp = Cross contArgType (m + 1)
 
     n :: Int
     n = upperBound - 1

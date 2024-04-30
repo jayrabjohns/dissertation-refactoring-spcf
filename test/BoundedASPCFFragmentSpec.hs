@@ -15,13 +15,15 @@ tests =
       -- countProductLengthOfOne,
       -- countBinaryProductLength,
       -- countProductLengthOfConstant
-      -- injHasCorrectType1
-      -- injHasCorrectType2
-      -- injHasCorrectType3
-      -- projHasCorrectType1
-      -- projHasCorrectType2
-      -- projHasCorrectType3
-      -- retractIsObservationallyEquivelant2
+      injHasCorrectType1,
+      injHasCorrectType2,
+      injHasCorrectType3,
+      injHasCorrectType5,
+      projHasCorrectType1,
+      projHasCorrectType2,
+      projHasCorrectType3,
+      -- -- projHasCorrectType5,
+      retractIsObservationallyEquivelant2,
       retractIsObservationallyEquivelant3
     ]
 
@@ -139,10 +141,21 @@ injHasCorrectType3 = do
           Case
             (Case (Numeral 1) (Variable "p"))
             (Product (Bottom <$ numerals))
-  let innerInjType =
+  let expectedInjFType =
         Pair Nat $
-          Cross (Pair Nat (Cross (Unit :-> Empty) upperBound)) upperBound
-  let expectedInjFType = Pair Nat (Cross innerInjType upperBound)
+          ( Cross
+              ( Pair Nat $
+                  Cross
+                    ( Pair Nat $
+                        ( Cross
+                            (Unit :-> Empty)
+                            upperBound
+                        )
+                    )
+                    upperBound
+              )
+              upperBound
+          )
   let expectedInjTermFType =
         ((Cross Nat 3) :-> Empty)
           :-> (Pair Nat $ Cross ((Cross Nat 2) :-> Empty) upperBound)
@@ -164,6 +177,45 @@ injHasCorrectType3 = do
           expectedInjFType
           injFType
     ]
+
+injHasCorrectType5 :: Test
+injHasCorrectType5 = do
+  let f =
+        Lambda "p" (Cross Nat 5) $
+          Case
+            (Case (Numeral 1) (Variable "p"))
+            (Product (Bottom <$ numerals))
+  let expectedInjFType =
+        Pair Nat $
+          Cross
+            ( Pair Nat $
+                Cross
+                  ( Pair Nat $
+                      Cross
+                        ( Pair Nat $
+                            Cross
+                              ( Pair Nat $
+                                  ( Cross
+                                      (Unit :-> Empty)
+                                      upperBound
+                                  )
+                              )
+                              upperBound
+                        )
+                        upperBound
+                  )
+                  upperBound
+            )
+            upperBound
+
+  let injF = inj f
+  let injFType = typeof' injF
+
+  TestCase $
+    assertEqual
+      "Inj result doesn't have the correct type"
+      expectedInjFType
+      injFType
 
 projHasCorrectType1 :: Test
 projHasCorrectType1 = do
@@ -249,6 +301,23 @@ projHasCorrectType3 = do
       fType
       affineFType
 
+projHasCorrectType5 :: Test
+projHasCorrectType5 = do
+  let f =
+        Lambda "p" (Cross Nat 5) $
+          Case
+            (Case (Numeral 1) (Variable "p"))
+            (Product (Bottom <$ numerals))
+  let fType = typeof' f
+  let affineF = (proj . inj) f
+  let affineFType = typeof' affineF
+
+  TestCase $
+    assertEqual
+      "The projection of f should have the same type as f"
+      fType
+      affineFType
+
 retractIsObservationallyEquivelant2 :: Test
 retractIsObservationallyEquivelant2 = do
   let f =
@@ -284,12 +353,12 @@ retractIsObservationallyEquivelant3 = do
 
 assertSameResult :: Term -> Term -> Term -> Test
 assertSameResult term1 term2 arg = TestCase $ do
-  _ <- print ""
-  _ <- print ("arg size = " ++ show (length (show arg)))
-  _ <- print ("arg = " ++ show arg)
-  _ <- print ("term1 size = " ++ show (length (show term1)))
+  -- _ <- print ""
+  -- _ <- print ("arg size = " ++ show (length (show arg)))
+  -- _ <- print ("arg = " ++ show arg)
+  -- _ <- print ("term1 size = " ++ show (length (show term1)))
   -- _ <- putStrLn ("term1 = " ++ show term1)
-  _ <- print ("term2 size = " ++ show (length (show term2)))
+  -- _ <- print ("term2 size = " ++ show (length (show term2)))
   -- _ <- putStrLn ("term2 = " ++ show term2)
   result1 <- runEvalIO (eval (Apply term1 arg)) empty
   result2 <- runEvalIO (eval (Apply term2 arg)) empty
