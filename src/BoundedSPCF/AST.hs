@@ -56,7 +56,8 @@ data Type
   | Empty -- Non-terminating function
   | (:->) Type Type -- Procedure
   | Unit -- Type of the empty product
-  | Cross Type Type -- Binary product
+  | Cross Type Int -- n fold product
+  | Pair Type Type -- binary product
   deriving (Eq)
 
 -- When constructing types with :-> we typically want them to associate right
@@ -65,20 +66,23 @@ data Type
 -- o -> o -> o == (o -> o) -> o
 infixr 5 :->
 
+-- infixr 5 `Cross`
+
 instance Show Type where
-  show = beautify 0
+  show = beautify 1
     where
       beautify :: Int -> Type -> String
       beautify _ Nat = "Nat"
       -- beautify _ (Nat :-> rhs) = "Nat->" ++ beautify 0 rhs
       -- beautify i (lhs :-> rhs) = if i == 1 then "(" ++ beautify 1 lhs ++ ")" ++ "->" ++ beautify 1 rhs else beautify 0 lhs ++ "->" ++ beautify 1 rhs
-      beautify i (lhs :-> rhs) = if i == 1 then "(" ++ s ++ ")" else s where s = beautify 1 lhs ++ "->" ++ beautify 0 rhs
-      beautify i (Cross lhs rhs) = if i == 0 then "(" ++ s ++ ")" else s where s = beautify 1 lhs ++ "x" ++ beautify 1 rhs
-      beautify _ Unit = "()"
+      beautify i (lhs :-> rhs) = if i == 0 then "(" ++ s ++ ")" else s where s = beautify 0 lhs ++ "->" ++ beautify 1 rhs
+      beautify i (Cross typ n) = if i == 0 then "(" ++ s ++ ")" else s where s = "[" ++ beautify 1 typ ++ "]^" ++ show n
+      beautify _ Unit = "I"
       beautify _ Empty = "0"
+      beautify i (Pair lhs rhs) = if i == 0 then "(" ++ s ++ ")" else s where s = beautify 0 lhs ++ "x" ++ beautify 1 rhs
 
-emptyProduct :: Term
-emptyProduct = Product []
+unit :: Term
+unit = Product []
 
 -- A family of n projections πᵢ: Tⁿ => T
 -- π₀(t) = I where I is the empty product

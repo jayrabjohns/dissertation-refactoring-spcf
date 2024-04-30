@@ -15,7 +15,10 @@ tests =
 
 evalCase :: Test
 evalCase = do
-  let f = Lambda "p" (Nat `Cross` Nat `Cross` Nat) $ Lambda "i" Nat $ Case (Variable "i") (Variable "p")
+  let f =
+        Lambda "p" (Cross Nat 3) $
+          Lambda "i" Nat $
+            Case (Variable "i") (Variable "p")
   let p = Product [Numeral 1, Numeral 2, Numeral 3]
   let i = Numeral 2
   let term = Apply (Apply f p) i
@@ -26,7 +29,10 @@ evalCase = do
 
 evalCase0 :: Test
 evalCase0 = do
-  let f = Lambda "p" (Nat `Cross` Nat `Cross` Nat) $ Lambda "i" Nat $ Case (Variable "i") (Variable "p")
+  let f =
+        Lambda "p" (Cross Nat 3) $
+          Lambda "i" Nat $
+            Case (Variable "i") (Variable "p")
   let p = Product [Numeral 1, Numeral 2, Numeral 3]
   let i = Numeral 0
   let term = Apply (Apply f p) i

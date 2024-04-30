@@ -23,8 +23,8 @@ tests =
     [ -- ASPCFFragmentSpec.tests
       -- SPCFSpec.tests,
       -- SPCFTermManipulationSpec.tests,
-      -- ProductSpec.tests,
-      -- BoundedSPCFSpec.tests
-      -- BoundedSPCFTypesSpec.tests,
+      -- ProductSpec.tests
+      -- BoundedSPCFSpec.tests,
+      -- BoundedSPCFTypesSpec.tests
       BoundedASPCFFragmentSpec.tests
     ]

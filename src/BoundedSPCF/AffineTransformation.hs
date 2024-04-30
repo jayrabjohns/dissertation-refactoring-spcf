@@ -1,6 +1,6 @@
 module BoundedSPCF.AffineTransformation where
 
-import BoundedSPCF.AST (Product, Term (..), Type (..), insertProduct, projection, removeProduct, upperBound)
+import BoundedSPCF.AST (Product, Term (..), Type (..), insertProduct, numerals, projection, removeProduct, unit, upperBound)
 import BoundedSPCF.TermManipulation (normalise)
 import BoundedSPCF.Types (typeof')
 import Debug.Trace (trace)
@@ -15,12 +15,14 @@ inj Bottom = Bottom
 inj f =
   -- trace ("about to inj " ++ show f) $
   let fType = typeof' f
-   in if isBaseType fType
-        then normalise f
-        else
+   in trace ("about to inj type " ++ show fType) $ case fType of
+        (Unit :-> Empty) -> unit
+        (Cross _ 0 :-> Empty) -> unit
+        -- (Cross Nat 1 :-> Empty) -> normalise $ Apply (injTerm fType) f
+        _ ->
           let injF = normalise $ Apply (injTerm fType) f
            in case injF of
-                (Case n (Product prod)) -> Case n (Product $ aux <$> prod)
+                (Case n (Product prod)) -> trace ("about to inj each one of " ++ show prod) $ Case n (Product $ aux <$> prod)
                 Top -> Top
                 Bottom -> Bottom
                 _ -> error $ "Inj shouldn't be able to produce a term of this kind: " ++ show injF
@@ -31,11 +33,11 @@ inj f =
         "Inj term does not have expected structure."
           ++ (" Expected a binary product but got a " ++ show badTerm)
 
-    isBaseType :: Type -> Bool
-    isBaseType (Nat :-> Empty) = True
-    isBaseType (lhs :-> rhs) = isBaseType lhs || isBaseType rhs
-    isBaseType (Cross lhs rhs) = isBaseType lhs || isBaseType rhs
-    isBaseType _ = False
+-- isBaseType :: Type -> Bool
+-- isBaseType (Nat :-> Empty) = True
+-- isBaseType (lhs :-> rhs) = isBaseType lhs || isBaseType rhs
+-- isBaseType (Cross lhs rhs) = isBaseType lhs || isBaseType rhs
+-- isBaseType _ = False
 
 -- | Apply inj once without any care for the consequences.
 inj' :: Term -> Term
@@ -46,7 +48,20 @@ inj' f =
    in Apply (injTerm fType) f
 
 injTerm :: Type -> Term
-injTerm ftype@((:->) (Cross xtype _) Empty) =
+injTerm ftype@((Cross _ 1) :-> Empty) =
+  Lambda "f" ftype $
+    Case (Numeral 0) $
+      Product
+        [ BinProduct
+            (Numeral 0)
+            ( Product
+                [ Lambda "empty" Unit $
+                    Apply (Variable "f") (Product [j])
+                  | j <- numerals
+                ]
+            )
+        ]
+injTerm ftype@((Cross xtype typeOrder) :-> Empty) =
   let strictIndex = Catch $ Variable "f"
    in Lambda "f" ftype $
         Case strictIndex $
@@ -58,7 +73,7 @@ injTerm ftype@((:->) (Cross xtype _) Empty) =
 
     -- A continuation function for each argument of f for a given value
     continuation :: Int -> Int -> Term
-    continuation j i = Lambda "x" xtype $ Apply (Variable "f") (args j i)
+    continuation j i = Lambda "x" (Cross xtype (typeOrder - 1)) $ Apply (Variable "f") (args j i)
 
     -- Value for f's strict argument along with placeholders for later
     args :: Int -> Int -> Term
@@ -66,11 +81,11 @@ injTerm ftype@((:->) (Cross xtype _) Empty) =
 
     -- The rest of the arguemnts for f which can be applied at a later time
     otherArgs :: Product
-    otherArgs = [projection (Variable "x") k | k <- [0 .. (productLength xtype) - 1]]
+    otherArgs = [projection (Variable "x") k | k <- [0 .. m]]
 
     -- f has m + 1 arguments,
     m :: Int
-    m = (arity ftype) - 1
+    m = typeOrder - 2
 
     -- Upper bound for the underlying datatype in bounded SPCF
     n :: Int
@@ -90,8 +105,8 @@ proj term =
   let typ = typeof' term
    in trace ("about to proj on type " ++ show typ) $ case typ of
         --  (Cross _ (Cross _ (_ :-> Empty))) -> trace ("1about to apply a proj on " ++ show term) $ normalise $ Apply (projTerm typ) term
-        (Nat `Cross` ((Nat :-> Empty) `Cross` _)) -> trace ("done " ++ show term) $ normalise $ Apply (projTerm typ) term
-        (Nat `Cross` (((Nat `Cross` _) :-> Empty) `Cross` _)) -> trace ("2about to apply a proj on " ++ show term) $ normalise $ Apply (projTerm typ) term
+        -- (Pair Nat (Cross Unit _)) -> trace ("1about to apply a proj on " ++ show term) $ normalise $ Apply (projTerm typ) term
+        -- (Pair Nat (Cross (Cross _ _ :-> Empty) _)) -> trace ("2about to apply a proj on " ++ show term) $ normalise $ Apply (projTerm typ) term
         _ -> case term of
           Case n (Product pairs) ->
             let f = Product $ aux <$> pairs
@@ -113,7 +128,12 @@ proj' term =
    in Apply (projTerm typ) term
 
 projTerm :: Type -> Term
-projTerm typ@(Cross _ (Cross _ (continuationArgsType :-> Empty))) =
+projTerm typ@(Pair Nat (Cross (Unit :-> Empty) _)) =
+  Lambda "tuple" typ $
+    Lambda "nextargs" Unit $
+      Case (Numeral 0) $
+        Product [Case (Numeral 0) (Product [Bottom])]
+projTerm typ@(Pair Nat (Cross ((Cross contArgType numConts) :-> Empty) _)) =
   Lambda "tuple" typ $
     Lambda "nextargs" fArgsType $
       trace ("\nconstructing proj term with type \\tuple: " ++ show typ ++ " \\nextargs: " ++ show fArgsType ++ ". ...") $
@@ -132,10 +152,9 @@ projTerm typ@(Cross _ (Cross _ (continuationArgsType :-> Empty))) =
     providedArgs :: Product
     providedArgs = [projection (Variable "nextargs") i | i <- [0 .. m]]
 
-    fArgsType = continuationArgsType `Cross` Nat
-
+    fArgsType = Cross contArgType (numConts + 1)
     m :: Int
-    m = (productLength fArgsType) - 1
+    m = numConts - 1
 
     n :: Int
     n = upperBound - 1
@@ -146,22 +165,22 @@ projTerm typ =
       ++ show typ
 
 -- Assuming it is normalised for now
-arity :: Type -> Int
-arity Nat = 0
-arity Empty = 0
-arity Unit = 0
-arity ((:->) _ t2) = 1 + arity t2
-arity (Cross _ _) = 0
+-- arity :: Type -> Int
+-- arity Nat = 0
+-- arity Empty = 0
+-- arity Unit = 0
+-- arity ((:->) _ t2) = 1 + arity t2
+-- arity (Cross _ _) = 0
 
-nfoldnats :: Int -> Type
-nfoldnats 1 = Nat
-nfoldnats n =
-  let nats = [Nat | _ <- [0 .. n]]
-   in foldr1 Cross nats
+-- nfoldnats :: Int -> Type
+-- nfoldnats 1 = Nat
+-- nfoldnats n =
+--   let nats = [Nat | _ <- [0 .. n]]
+--    in foldr1 Cross nats
 
-productLength :: Type -> Int
-productLength Nat = 1
-productLength Empty = 1
-productLength Unit = 1
-productLength ((:->) t1 t2) = productLength t1 + productLength t2
-productLength (Cross t1 t2) = productLength t1 + productLength t2
+-- productLength :: Type -> Int
+-- productLength Nat = 1
+-- productLength Empty = 1
+-- productLength Unit = 1
+-- productLength ((:->) t1 t2) = 1 -- productLength t1 + productLength t2
+-- productLength (Cross t1 t2) = productLength t1 + productLength t2

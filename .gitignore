@@ -1,6 +1,14 @@
+# Cabal Build Files
 dist-newstyle
 dist
+
+# Vscode generated files
 .vscode/tasks.json
 .vscode/dist-cabal-repl
 .vscode/phoityne.log
+
+# Python venv
+.venv
+
+# Other
 logs

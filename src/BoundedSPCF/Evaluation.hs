@@ -20,7 +20,7 @@ runEvalIO evaluation env = do
   let (resultEither, logs) = runEval evaluation env
   _ <- putStrLn ""
   _ <- putStrLn "Starting new evaluation"
-  _ <- traverse putStrLn logs
+  -- _ <- traverse putStrLn logs
   -- _ <- traverse (\(i, lg) -> putStrLn $ show i ++ " | " ++ lg) (zip [i | i <- [0 .. (length logs)]] logs)
   result <- either fail return resultEither
   _ <- putStrLn $ "Final result: " ++ show result

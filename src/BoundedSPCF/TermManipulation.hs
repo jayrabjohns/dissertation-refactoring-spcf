@@ -15,6 +15,7 @@ normalise (Apply lhs rhs) = do
     (Lambda label _ body) -> normalise (substitute label arg body)
     _ -> Apply (normalise lhs) arg
 normalise (Succ body) = Succ (normalise body)
+-- normalise (Product [singleElem]) = singleElem
 normalise (Product prod) = Product (map normalise prod)
 normalise (BinProduct lhs rhs) = BinProduct (normalise lhs) (normalise rhs)
 normalise (Fst term) = Fst (normalise term)

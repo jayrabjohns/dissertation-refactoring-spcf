@@ -9,6 +9,7 @@ tests :: Test
 tests =
   TestList
     [ typeProduct,
+      typeComplexProduct,
       typeCase,
       typeLongFunction,
       typeFunction
@@ -17,7 +18,27 @@ tests =
 typeProduct :: Test
 typeProduct = do
   let prod = Product [Numeral 1, Numeral 2, Numeral 3]
-  let expectedType = Nat `Cross` Nat `Cross` Nat
+  let expectedType = Cross Nat 3
+  let typ = runJudgement (typeof prod) empty
+  TestCase $
+    assertEqual "" expectedType typ
+
+typeComplexProduct :: Test
+typeComplexProduct = do
+  let prod =
+        Lambda "f" (Nat :-> Empty) $
+          Case (Numeral 0) $
+            Product
+              [ BinProduct
+                  (Numeral 0)
+                  ( Product
+                      [ Lambda "empty" Unit $
+                          Apply (Variable "f") (Product [j])
+                        | j <- numerals
+                      ]
+                  )
+              ]
+  let expectedType = (Nat :-> Empty) :-> Pair Nat (Cross (Unit :-> Empty) 2)
   let typ = runJudgement (typeof prod) empty
   TestCase $
     assertEqual "" expectedType typ
@@ -41,8 +62,8 @@ typeLongFunction = do
 
 typeFunction :: Test
 typeFunction = do
-  let term = Lambda "p" (Nat `Cross` Nat `Cross` Nat) $ Lambda "i" Nat $ Case (Variable "i") (Variable "p")
-  let expectedType = (Nat `Cross` Nat `Cross` Nat) :-> Nat :-> Nat
+  let term = Lambda "p" (Cross Nat 3) $ Lambda "i" Nat $ Case (Variable "i") (Variable "p")
+  let expectedType = (Cross Nat 3) :-> Nat :-> Nat
   let typ = runJudgement (typeof term) empty
   TestCase $
     assertEqual "" expectedType typ

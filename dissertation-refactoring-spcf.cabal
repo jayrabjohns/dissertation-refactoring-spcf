@@ -20,11 +20,13 @@ library
         SPCF.Types
         SPCF.Constants
         SPCF.Evaluation
+        SPCF.AffineTransformation
         BoundedSPCF.AST
         BoundedSPCF.Types
         BoundedSPCF.AffineTransformation
         BoundedSPCF.Evaluation
         BoundedSPCF.TermManipulation
+        BoundedSPCF.ChurchEncoding
         Utils.Environment
         STLC
         Frontend.Lexer 
@@ -59,6 +61,7 @@ test-suite dissertation-refactoring-spcf-test
     other-modules:
         SPCFSpec
         SPCFTermManipulationSpec
+        ASPCFFragmentSpec
         BoundedSPCFSpec
         BoundedSPCFTypesSpec
         BoundedASPCFFragmentSpec

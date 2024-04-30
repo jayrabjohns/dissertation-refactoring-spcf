@@ -1,5 +1,7 @@
 # Refactoring SPCF
 
+ghci src/Utils/Environment.hs src/BoundedSPCF/AST.hs src/BoundedSPCF/Types.hs  src/BoundedSPCF/AffineTransformation.hs 
+
 ## Running locally with GHC and Cabal.
 Firstly, you'll need GHC and Cabal, which can be installed with [GHCup](https://www.haskell.org/ghcup/install/).
 
