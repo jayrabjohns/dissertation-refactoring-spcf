@@ -8,7 +8,7 @@ We explore the concept of function denesting in SPCF, a derivative of typed $\la
 As part of the project we also build and release an interpreter for SPCF, a language that currently lacks one which is widely available. This both has the focus of illustrating the denesting action working, as well as contributing to the language’s ecosystem, hopefully making it easier to experiment with the language.
 
 ## Dissertation
-The full dissertation along with implementation details of the interpreter is found here: 
+The full dissertation along with implementation details of the interpreter is found here: https://github.com/jayrabjohns/dissertation-refactoring-spcf
 
 ## Building locally with GHC and Cabal.
 Firstly, you'll need GHC and Cabal, which can be installed with [GHCup](https://www.haskell.org/ghcup/install/).
