@@ -10,17 +10,20 @@ import Data.List (elemIndex)
 import Utils.Environment (Environment, empty, insert, labels, lookup)
 import Prelude hiding (lookup)
 
+-- | Monad to represent term evalutation
 type Eval a = (ReaderT (Environment a) (ExceptT String (WriterT [String] Identity))) a
 
+-- | Run the eval monad in a pure context. Discrads interpreter logs.
 runEval :: Eval a -> Environment a -> (Either String a, [String])
 runEval evalA env = runIdentity . runWriterT . runExceptT $ runReaderT evalA env
 
+-- | Run the eval monad in the context of an IO. Prints interpreter logs.
 runEvalIO :: (Show a) => Eval a -> Environment a -> IO a
 runEvalIO evaluation env = do
   let (resultEither, logs) = runEval evaluation env
   _ <- putStrLn ""
   _ <- putStrLn "Starting new evaluation"
-  -- _ <- traverse putStrLn logs
+  _ <- traverse putStrLn logs
   -- _ <- traverse (\(i, lg) -> putStrLn $ show i ++ " | " ++ lg) (zip [i | i <- [0 .. (length logs)]] logs)
   result <- either fail return resultEither
   _ <- putStrLn $ "Final result: " ++ show result
@@ -36,8 +39,8 @@ interpretIO term = runEvalIO (eval term) empty
 -- Evaluation is commonly denoted by ⇓ and is sort of a decomposition of a
 --   closure (a redex and an evaluation context) into a value.
 --   If the term is of ground type then the result will be a numeral, otherwise
---   it will return a the beta reduced term along with the evaluation
---   context up to that point.
+--   it will return a the term in weak head normal form along with the
+--   evaluation context up to that point.
 eval :: Term -> Eval Term
 eval Bottom = return Bottom
 eval Top = return Top
@@ -156,7 +159,7 @@ eval (Case num prod) = do
 eval (Catch body) = do
   env <- ask
   let usedLabels = labels env
-  let catchResult = runCatch (catch body) [] -- usedLabels
+  let catchResult = runCatch (catch body) []
   result <- case catchResult of
     Constant (Numeral i) n -> do
       tell ["Catch on constant"]
@@ -178,6 +181,7 @@ eval (Catch body) = do
 
 type Catch a = ReaderT [Label] Identity a
 
+-- | Run the catch monad
 runCatch :: Catch a -> [Label] -> a
 runCatch ctch args = runIdentity $ runReaderT ctch args
 

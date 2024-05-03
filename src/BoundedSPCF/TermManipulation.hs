@@ -3,6 +3,7 @@ module BoundedSPCF.TermManipulation where
 import BoundedSPCF.AST (Label, Term (..))
 import Data.List (find)
 
+-- | Beta reduce term until its normal form is reached
 normalise :: Term -> Term
 normalise Bottom = Bottom
 normalise Top = Top
@@ -23,6 +24,7 @@ normalise (Snd term) = Snd (normalise term)
 normalise (Case n prod) = Case (normalise n) (normalise prod)
 normalise (Catch body) = Catch (normalise body)
 
+-- | Capture avoiding substitution
 substitute :: Label -> Term -> Term -> Term
 substitute _ _ Bottom = Bottom
 substitute _ _ Top = Top
@@ -46,6 +48,7 @@ substitute old new (Case n body) =
   Case (substitute old new n) (substitute old new body)
 substitute old new (Catch body) = Catch (substitute old new body)
 
+-- | Alpha renaming
 rename :: Label -> Label -> Term -> Term
 rename _ _ Bottom = Bottom
 rename _ _ Top = Top
@@ -65,11 +68,13 @@ rename old new (Snd term) = Snd (rename old new term)
 rename old new (Case n body) = Case (rename old new n) (rename old new body)
 rename old new (Catch body) = Catch (rename old new body)
 
+-- | Get fresh variable name given a list of used labels
 fresh :: [Label] -> Label
 fresh usedLabels = case (find (`notElem` usedLabels) possibleLabels) of
   Just label -> label
   Nothing -> error "Error, somehow all variable names have been used. This shouldn't be possible."
 
+-- | Calculate a list of used lables in a term
 used :: Term -> [Label]
 used Bottom = []
 used Top = []
@@ -85,11 +90,14 @@ used (Snd term) = used term
 used (Case num prod) = used num ++ used prod
 used (Catch term) = used term
 
+-- | Infinite list of possible labels
 possibleLabels :: [Label]
 possibleLabels = alphabetLazyList ++ alphaNumsLazyList
 
+-- | Lazy list of lowercase characters from the english alphabet
 alphabetLazyList :: [String]
 alphabetLazyList = [[char] | char <- ['a' .. 'z']]
 
+-- | Infinite lazy list of strings of the form a1, b1, ..., z1, a2, ...
 alphaNumsLazyList :: [String]
 alphaNumsLazyList = [char : show i | i <- [1 :: Int ..], char <- ['a' .. 'z']]

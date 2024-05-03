@@ -13,12 +13,9 @@ inj :: Term -> Term
 inj Top = Top
 inj Bottom = Bottom
 inj f =
-  -- trace ("about to inj " ++ show f) $
   let fType = typeof' f
    in trace ("about to inj type " ++ show fType) $ case fType of
-        -- (Unit :-> Empty) -> unit
-        (Cross _ 1 :-> Empty) -> normalise $ Apply (injTerm fType) f -- Lambda "x" Unit Bottom -- unit
-        -- (Cross Nat 1 :-> Empty) -> normalise $ Apply (injTerm fType) f
+        (Cross _ 1 :-> Empty) -> normalise $ Apply (injTerm fType) f
         _ ->
           let injF = normalise $ Apply (injTerm fType) f
            in case injF of
@@ -33,12 +30,6 @@ inj f =
         "Inj term does not have expected structure."
           ++ (" Expected a binary product but got a " ++ show badTerm)
 
--- isBaseType :: Type -> Bool
--- isBaseType (Nat :-> Empty) = True
--- isBaseType (lhs :-> rhs) = isBaseType lhs || isBaseType rhs
--- isBaseType (Cross lhs rhs) = isBaseType lhs || isBaseType rhs
--- isBaseType _ = False
-
 -- | Apply inj once without any care for the consequences.
 inj' :: Term -> Term
 inj' Top = Top
@@ -47,6 +38,7 @@ inj' f =
   let fType = typeof' f
    in Apply (injTerm fType) f
 
+-- | A term constructor for an inj step for a corresponding type
 injTerm :: Type -> Term
 injTerm ftype@((Cross _ 1) :-> Empty) =
   Lambda "f" ftype $
@@ -85,7 +77,7 @@ injTerm ftype@((Cross argType mPlus1) :-> Empty) =
     m :: Int
     m = mPlus1 - 1
 
-    -- Upper bound for the underlying datatype in bounded SPCF
+    -- \| Upper bound for the underlying datatype in bounded SPCF
     n :: Int
     n = upperBound - 1
 injTerm typ =
@@ -102,17 +94,13 @@ proj Bottom = Bottom
 proj term =
   let typ = typeof' term
    in trace ("about to proj on type " ++ show typ) $ case typ of
-        -- (Cross {} :-> Empty) -> error ("think were done. term: " ++ show term) -- trace "done" $ normalise term
-        Pair Nat (Cross (Unit :-> Empty) _) -> trace "base case" $ normalise $ Apply (projTerm typ {-(Pair Nat (Cross (Unit :-> Empty) n))-}) term
-        --  (Cross _ (Cross _ (_ :-> Empty))) -> trace ("1about to apply a proj on " ++ show term) $ normalise $ Apply (projTerm typ) term
-        -- (Pair Nat (Cross Unit _)) -> trace ("1about to apply a proj on " ++ show term) $ normalise $ Apply (projTerm typ) term
-        -- (Pair Nat (Cross (Cross _ _ :-> Empty) _)) -> trace ("2about to apply a proj on " ++ show term) $ normalise $ Apply (projTerm typ) term
+        Pair Nat (Cross (Unit :-> Empty) _) -> trace "base case" $ normalise $ Apply (projTerm typ) term
         Pair Nat (Cross (Cross Nat _ :-> Empty) _) -> trace ("This is a function " ++ show typ) $ normalise $ Apply (projTerm typ) term
         Pair Nat (Cross (Pair {}) _) -> case term of
           Case i (Product pairs) ->
             let f = aux <$> pairs
              in trace ("3about to apply a proj on " ++ show term) $ proj $ Case i (Product $ f)
-          wrongTerm -> error $ "infite loop, not applying to " ++ show wrongTerm -- trace ("not about to apply proj to term with type " ++ show typ ++ " and definition " ++ show term) $ normalise term -- error $ "Cannot project term " ++ show term
+          wrongTerm -> error $ "infite loop, not applying to " ++ show wrongTerm
         _ -> error $ "not sure what to say, the term has type " ++ show typ
   where
     aux (BinProduct i (Product conts)) = BinProduct i (Product $ proj <$> conts)
@@ -129,6 +117,7 @@ proj' term =
   let typ = typeof' term
    in Apply (projTerm typ) term
 
+-- | A term constructor for an proj step for a corresponding type
 projTerm :: Type -> Term
 projTerm typ@(Pair Nat (Cross (Unit :-> Empty) _)) =
   Lambda "tuple" typ $
@@ -173,24 +162,3 @@ projTerm typ =
     "Cannot project term in this form, it must"
       ++ "be of the form [m+1 X (n^m => 0)^n]. The provided term is of type "
       ++ show typ
-
--- Assuming it is normalised for now
--- arity :: Type -> Int
--- arity Nat = 0
--- arity Empty = 0
--- arity Unit = 0
--- arity ((:->) _ t2) = 1 + arity t2
--- arity (Cross _ _) = 0
-
--- nfoldnats :: Int -> Type
--- nfoldnats 1 = Nat
--- nfoldnats n =
---   let nats = [Nat | _ <- [0 .. n]]
---    in foldr1 Cross nats
-
--- productLength :: Type -> Int
--- productLength Nat = 1
--- productLength Empty = 1
--- productLength Unit = 1
--- productLength ((:->) t1 t2) = 1 -- productLength t1 + productLength t2
--- productLength (Cross t1 t2) = productLength t1 + productLength t2

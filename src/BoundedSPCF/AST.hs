@@ -9,26 +9,41 @@ type Numeral = Int
 
 type Product = [Term]
 
+-- | The upper bound for numerals in the language
 upperBound :: Numeral
 upperBound = 2
 
+-- | An ordered lazy list of all numerals
 numerals :: [Term]
 numerals = Numeral <$> [0 .. upperBound - 1]
 
 data Term
-  = Numeral Numeral
-  | Variable Label
-  | Lambda Label Type Term
-  | Apply Term Term
-  | Succ Term
-  | Product Product
-  | BinProduct Term Term
-  | Fst Term
-  | Snd Term
-  | Case Term Term
-  | Catch Term
-  | Bottom
-  | Top
+  = -- | Natural numbers
+    Numeral Numeral
+  | -- | Variables
+    Variable Label
+  | -- | Lambda abstractions / functions
+    Lambda Label Type Term
+  | -- | Application / function application
+    Apply Term Term
+  | -- | Successor (add one)
+    Succ Term
+  | -- | Finite tuple of single type
+    Product Product
+  | -- | Binary product
+    BinProduct Term Term
+  | -- | First element of a product
+    Fst Term
+  | -- | Second element of a product
+    Snd Term
+  | -- | Project into a product at a specified index
+    Case Term Term
+  | -- | Cartwright and Felleisen's catch procedure
+    Catch Term
+  | -- | Element with the empty type
+    Bottom
+  | -- | A sort of unrecoverable error
+    Top
   deriving (Eq)
 
 instance Show Term where
@@ -72,15 +87,11 @@ data Type
 -- o -> o -> o == (o -> o) -> o
 infixr 5 :->
 
--- infixr 5 `Cross`
-
 instance Show Type where
   show = beautify 1
     where
       beautify :: Int -> Type -> String
       beautify _ Nat = "Nat"
-      -- beautify _ (Nat :-> rhs) = "Nat->" ++ beautify 0 rhs
-      -- beautify i (lhs :-> rhs) = if i == 1 then "(" ++ beautify 1 lhs ++ ")" ++ "->" ++ beautify 1 rhs else beautify 0 lhs ++ "->" ++ beautify 1 rhs
       beautify i (lhs :-> rhs) = if i == 0 then "(" ++ s ++ ")" else s where s = beautify 0 lhs ++ "->" ++ beautify 1 rhs
       beautify i (Cross typ n) = if i == 0 then "(" ++ s ++ ")" else s where s = "[" ++ beautify 1 typ ++ "]^" ++ show n
       beautify _ Unit = "I"
@@ -90,8 +101,8 @@ instance Show Type where
 unit :: Term
 unit = Product []
 
--- A family of n projections πᵢ: Tⁿ => T
--- π₀(t) = I where I is the empty product
+-- | A family of n projections πᵢ: Tⁿ => T
+-- | π₀(t) = I where I is the empty product
 projection :: Term -> Int -> Term
 projection (BinProduct lhs _) 0 = lhs
 projection (BinProduct _ rhs) 1 = rhs
@@ -104,13 +115,13 @@ projection (Product prod) i =
           ++ (show i ++ " of the product " ++ show prod)
 projection term i = Case (Numeral i) term
 
--- Insert element into 0 indexed n-fold product at a given position
+-- | Insert element into 0 indexed n-fold product at a given position
 insertProduct :: Product -> Term -> Int -> Product
 insertProduct prod toInsert index =
   let (before, after) = Data.List.splitAt index prod
    in before ++ [toInsert] ++ after
 
--- Remove element from 0 indexed n-fold product at a given position
+-- | Remove element from 0 indexed n-fold product at a given position
 removeProduct :: Product -> Int -> Product
 removeProduct prod index =
   let (before, after) = Data.List.splitAt (index + 1) prod

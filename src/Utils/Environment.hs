@@ -1,8 +1,9 @@
 module Utils.Environment where
 
-import Data.Map as Map (Map, empty, insert, keys, lookup, fromList)
+import Data.Map as Map (Map, empty, fromList, insert, keys, lookup)
 import qualified Data.Map.Internal.Debug as Map.Debug
 
+-- | A mapping between labels (strings) and values
 newtype Environment a = Env (Map.Map String a)
 
 lookup :: String -> Environment a -> Maybe a

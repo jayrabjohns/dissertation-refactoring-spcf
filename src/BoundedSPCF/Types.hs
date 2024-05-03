@@ -1,7 +1,6 @@
 module BoundedSPCF.Types where
 
 import BoundedSPCF.AST (Term (..), Type (..))
-import BoundedSPCF.TermManipulation
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Reader (MonadReader (ask, local), ReaderT (runReaderT))
 import Debug.Trace (trace)
@@ -12,12 +11,15 @@ type Context a = Environment a
 
 type Judgement a = (ReaderT (Context a) Identity) a
 
+-- | Run the judgement monad
 runJudgement :: Judgement a -> (Context a) -> a
 runJudgement judgement context = runIdentity $ runReaderT judgement context
 
+-- | Infer the type of a closed term
 typeof' :: Term -> Type
 typeof' term = trace ("\nTyping term " ++ show term) runJudgement (typeof term) empty
 
+-- | Infer the type of a term and error if type rules are violated
 typeof :: Term -> Judgement Type
 typeof Bottom = return Empty
 typeof Top = return Empty
