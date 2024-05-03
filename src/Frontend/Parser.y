@@ -1,6 +1,5 @@
--- This grammar file is heavily based on
--- 1) The template found here https://github.com/dagit/happy-plus-alex
--- 2) The STLC Yacc grammar included with TAPL by Benjamin Pierce
+-- Based on https://github.com/dagit/happy-plus-alex
+-- Based on https://github.com/bagnalla/PCF
 
 {
 {-# OPTIONS -w #-}
@@ -20,19 +19,15 @@ import SPCF.Interpreter(Statement(..), Program(..),)
 %token
   arrow        { Token $$ TokenArrow }
   doublearrow  { Token $$ TokenDoubleArrow }
-  bool         { Token $$ TokenBoolTy }
   nat          { Token $$ TokenNatTy }
-  true         { Token $$ (TokenBool True) }
-  false        { Token $$ (TokenBool False) }
   error1       { Token $$ TokenError1 }
   error2       { Token $$ TokenError2 }
   natVal       { Token _ (TokenNat _) }
   succ         { Token $$ TokenSucc }
   pred         { Token $$ TokenPred }
   catch        { Token $$ TokenCatch }
-  iszero       { Token $$ TokenIszero }
   fix          { Token $$ TokenFix }
-  if           { Token $$ TokenIf }
+  if           { Token $$ TokenIf0 }
   then         { Token $$ TokenThen }
   else         { Token $$ TokenElse }
   eval         { Token $$ TokenEval }
@@ -43,7 +38,6 @@ import SPCF.Interpreter(Statement(..), Program(..),)
   ')'          { Token $$ TokenRParen }
   ':'          { Token $$ TokenColon }
   ';'          { Token $$ TokenSemicolon }
-  -- eof          { Token $$ TokenEOF }
 
 %left ';'
 %nonassoc '='
@@ -60,7 +54,7 @@ import SPCF.Interpreter(Statement(..), Program(..),)
 Prog :
   Statements { SPCF.Interpreter.Prog { SPCF.Interpreter.pinfo_of = AlexPn 0 0 0, SPCF.Interpreter.prog_of = $1 } }
 
--- Atomic types
+-- Atomic terms
 AType :
   nat { SPCF.AST.Base }
   | '(' Type ')' { $2 }

@@ -76,11 +76,6 @@ typeof term@(YComb _ body) = do
   case bodyType of
     (_ :-> returnType) -> returnType <$ tell ["[" ++ show term ++ "]: " ++ show returnType]
     wrongType -> throwError $ "Cannot typecheck " ++ show term ++ ". Type calculated " ++ show wrongType
-typeof term@(Iter _ body) = do
-  bodyType <- typeof body
-  case bodyType of
-    (_ :-> returnType) -> (returnType :-> Empty) <$ tell ["[" ++ show term ++ "]: " ++ show returnType]
-    wrongType -> throwError $ "Cannot typecheck " ++ show term ++ ". Type calculated " ++ show wrongType
 typeof term@(Catch _ body) = do
   bodyType <- typeof body
   case bodyType of

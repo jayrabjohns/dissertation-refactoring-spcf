@@ -1,5 +1,5 @@
--- This file is heavily based on the template from
--- https://github.com/dagit/happy-plus-alex
+-- Based on https://github.com/dagit/happy-plus-alex
+-- Based on https://github.com/bagnalla/PCF
 
 {
 {-# OPTIONS -w  #-}
@@ -19,18 +19,14 @@ tokens :-
   $white+                       ;
   "->"                          { lex' TokenArrow }
   "=>"                          { lex' TokenDoubleArrow }
-  Bool                          { lex' TokenBoolTy }
   Nat                           { lex' TokenNatTy }
-  true                          { lex' $ TokenBool True }
-  false                         { lex' $ TokenBool False }
   error1                        { lex' TokenError1 }
   error2                        { lex' TokenError2 }
   succ                          { lex' TokenSucc }
   pred                          { lex' TokenPred }
   catch                         { lex' TokenCatch }
   fix                           { lex' TokenFix }
-  iszero                        { lex' TokenIszero }
-  if0                           { lex' TokenIf }
+  if0                           { lex' TokenIf0 }
   then                          { lex' TokenThen }
   else                          { lex' TokenElse }
   eval                          { lex' TokenEval }
@@ -69,11 +65,9 @@ data TokenClass =
   | TokenColon
   | TokenSemicolon
   | TokenBackslash
-  | TokenBoolTy
   | TokenNatTy
   | TokenArrow
   | TokenDoubleArrow
-  | TokenBool Bool
   | TokenError1
   | TokenError2
   | TokenNat Int
@@ -81,9 +75,8 @@ data TokenClass =
   | TokenSucc
   | TokenPred
   | TokenCatch
-  | TokenIszero
   | TokenFix
-  | TokenIf
+  | TokenIf0
   | TokenThen
   | TokenElse
   | TokenEval
@@ -98,11 +91,9 @@ unLex TokenRParen          = ")"
 unLex TokenColon           = ":"
 unLex TokenSemicolon       = ";"
 unLex TokenBackslash       = "\\"
-unLex TokenBoolTy          = "Bool"
 unLex TokenNatTy           = "Nat"
 unLex TokenArrow           = "->"
 unLex TokenDoubleArrow     = "=>"
-unLex (TokenBool b)        = show b
 unLex (TokenNat i)         = show i
 unLex TokenError1          = "error1"
 unLex TokenError2          = "error2"
@@ -110,9 +101,8 @@ unLex TokenEq              = "="
 unLex TokenSucc            = "succ"
 unLex TokenPred            = "pred"
 unLex TokenCatch           = "catch"
-unLex TokenIszero          = "iszero"
 unLex TokenFix             = "fix"
-unLex TokenIf              = "if0"
+unLex TokenIf0              = "if0"
 unLex TokenThen            = "then"
 unLex TokenElse            = "else"
 unLex TokenEval            = "eval"

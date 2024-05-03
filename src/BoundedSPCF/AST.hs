@@ -52,12 +52,18 @@ instance Show Term where
       beautify _ Top = "T"
 
 data Type
-  = Nat -- Base type (numerals)
-  | Empty -- Non-terminating function
-  | (:->) Type Type -- Procedure
-  | Unit -- Type of the empty product
-  | Cross Type Int -- n fold product
-  | Pair Type Type -- binary product
+  = -- | Base type (numerals)
+    Nat
+  | -- | Non-terminating function
+    Empty
+  | -- | Funtion type
+    (:->) Type Type
+  | -- | Empty product
+    Unit
+  | -- | n-fold product
+    Cross Type Int
+  | -- | Binary product
+    Pair Type Type
   deriving (Eq)
 
 -- When constructing types with :-> we typically want them to associate right

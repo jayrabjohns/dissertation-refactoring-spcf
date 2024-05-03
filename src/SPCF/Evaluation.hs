@@ -64,7 +64,7 @@ eval (Apply _ lterm rterm) = do
         tell
           [ "Apply ("
               ++ (show lval ++ ") [" ++ show arg ++ "/" ++ show name ++ "] ")
-              ++ ("with new environment\n" ++ show env)
+              -- ++ ("with new environment\n" ++ show env)
           ]
         local (const newEnv) (eval newBody)
       err@(Error {}) -> return err
@@ -122,11 +122,8 @@ eval (YComb inf term) = do
     top@(Top {}) -> return top
     bot@(Bottom {}) -> return bot
     _ -> throwError "Error, it is only possible to take a fixed point of a lambda abstraction"
-eval (Iter inf term) = do undefined
 eval (Catch inf body) = do
-  env <- ask
-  let usedLabels = labels env
-  case catch body usedLabels of
+  case catch body [] of
     Constant (Numeral _ i) n -> return $ Numeral inf (i + n)
     Constant (Error _ _) n -> return $ Numeral inf n
     Constant term _ ->
@@ -191,7 +188,6 @@ catch (If0 _ predicate tt ff) args =
     Constant (Numeral {}) _ -> catch ff args
     otherResult -> otherResult
 catch (YComb _ body) args = catch body args
-catch (Iter _ body) args = catch body args
 catch (Catch _ body) args = catch body args
 catch (Pair _ lhs rhs) args = do
   case catch lhs args of
@@ -246,7 +242,6 @@ label (If0 _ predicate tt ff) args =
     Left (Numeral {}) -> label ff args
     otherResult -> otherResult
 label (YComb _ body) args = label body args
-label (Iter _ body) args = label body args
 label (Catch _ body) args = label body args
 label (Pair _ lhs rhs) args = do
   case label lhs args of

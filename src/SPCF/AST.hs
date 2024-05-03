@@ -30,8 +30,6 @@ data Term info
     Pred info (Term info)
   | -- | Fixed point recursion by finding the fp of a term
     YComb info (Term info)
-  | -- | Sequential iteration
-    Iter info (Term info)
   | -- | Conditional on whether a natural number is 0
     If0 info (Term info) (Term info) (Term info)
   | -- Non-local control operator to return where a function is strict
@@ -56,7 +54,6 @@ termInfo (If0 inf _ _ _) = inf
 termInfo (Succ inf _) = inf
 termInfo (Pred inf _) = inf
 termInfo (YComb inf _) = inf
-termInfo (Iter inf _) = inf
 termInfo (Error inf _) = inf
 termInfo (Catch inf _) = inf
 termInfo (Pair inf _ _) = inf
@@ -83,7 +80,6 @@ instance Show (Term info) where
       beautify i (Succ _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "succ " ++ beautify 2 term
       beautify i (Pred _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "pred " ++ beautify 2 term
       beautify i (YComb _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "fix " ++ beautify 2 term
-      beautify i (Iter _ term) = if i /= 0 then "(" ++ s ++ ")" else s where s = "iter " ++ beautify 2 term
       beautify i (If0 _ cond lterm rterm) = if i == 2 then "(" ++ s ++ ")" else s where s = "if0 " ++ beautify 1 cond ++ " then " ++ beautify 1 lterm ++ " else " ++ beautify 1 rterm
       beautify _ (Error _ Error1) = "Error1"
       beautify _ (Error _ Error2) = "Error2"

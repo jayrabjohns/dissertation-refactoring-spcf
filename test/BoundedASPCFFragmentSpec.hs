@@ -3,7 +3,6 @@ module BoundedASPCFFragmentSpec where
 import BoundedSPCF.AST
 import BoundedSPCF.AffineTransformation
 import BoundedSPCF.Evaluation
-import BoundedSPCF.TermManipulation
 import BoundedSPCF.Types
 import Test.HUnit
 import Utils.Environment
@@ -11,76 +10,17 @@ import Utils.Environment
 tests :: Test
 tests =
   TestList
-    [ -- countProductLength,
-      -- countProductLengthOfOne,
-      -- countBinaryProductLength,
-      -- countProductLengthOfConstant
-      injHasCorrectType1,
+    [ injHasCorrectType1,
       injHasCorrectType2,
       injHasCorrectType3,
       injHasCorrectType5,
       projHasCorrectType1,
       projHasCorrectType2,
       projHasCorrectType3,
-      -- -- projHasCorrectType5,
+      projHasCorrectType5,
       retractIsObservationallyEquivelant2,
       retractIsObservationallyEquivelant3
     ]
-
--- countProductLength :: Test
--- countProductLength = do
---   let prod = Product [Numeral 1, Numeral 1, Numeral 1]
---   let expected = 3
---   let prodLen = productLength (typeof' prod)
---   TestCase $
---     assertEqual "should correctly determine length of product" expected prodLen
-
--- countProductLengthOfOne :: Test
--- countProductLengthOfOne = do
---   let prod = Product [Numeral 1]
---   let expected = 1
---   let prodLen = productLength (typeof' prod)
---   TestCase $
---     assertEqual "should correctly determine length of product" expected prodLen
-
--- countProductLengthOfConstant :: Test
--- countProductLengthOfConstant = do
---   let prod = Numeral 1
---   let expected = 1
---   let prodLen = productLength (typeof' prod)
---   TestCase $
---     assertEqual "should correctly determine length of product" expected prodLen
-
--- countBinaryProductLength :: Test
--- countBinaryProductLength = do
---   let prod = BinProduct (Numeral 1) (Product [BinProduct (Numeral 1) (Lambda "x" Nat (Variable "x")), BinProduct (Numeral 1) (Lambda "x" Nat (Variable "x"))])
---   let expected = 2
---   let prodLen = productLength (typeof' prod)
---   TestCase $
---     assertEqual "should correctly determine length of product" expected prodLen
-
--- countFunctionArguments :: Test
--- countFunctionArguments = do
---   let func = Lambda "x" Nat $ Lambda "y" (Nat `Cross` Nat) $ Variable "x"
---   let expected = 2
---   let numArgs = arity (typeof' func)
---   TestCase $
---     assertEqual "should correctly determine number of function arguments" expected numArgs
-
--- injHasCorrectType0 :: Test
--- injHasCorrectType0 = do
---   let f =
---         Lambda "p" (Cross Nat 0) $
---           Case
---             (Case (Numeral 0) (Variable "p"))
---             (Product (Bottom <$ numerals))
---   let expectedType = Unit
---   let injType = typeof' $ inj f
---   TestCase $
---     assertEqual
---       "should type nullary case for inj"
---       expectedType
---       injType
 
 injHasCorrectType1 :: Test
 injHasCorrectType1 = do

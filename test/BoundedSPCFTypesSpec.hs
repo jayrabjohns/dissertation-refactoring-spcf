@@ -38,7 +38,7 @@ typeComplexProduct = do
                       ]
                   )
               ]
-  let expectedType = (Nat :-> Empty) :-> Pair Nat (Cross (Unit :-> Empty) 2)
+  let expectedType = (Nat :-> Empty) :-> Pair Nat (Cross (Unit :-> Empty) 1)
   let typ = runJudgement (typeof prod) empty
   TestCase $
     assertEqual "" expectedType typ

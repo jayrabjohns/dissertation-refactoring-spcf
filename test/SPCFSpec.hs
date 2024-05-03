@@ -89,10 +89,10 @@ evalPredecessor = do
 evalPredecessorOf0 :: Test
 evalPredecessorOf0 = do
   let term = Pred info (Variable info "x")
-  let expectedVal = Numeral info 0
+  let expectedVal = Bottom info
   let env = fromList [("x", (Numeral info 0))]
   TestLabel
-    "predecessor of 0 in the natural numbers should evaluate to 0"
+    "predecessor of 0 in the natural numbers should evaluate to bottom"
     $ assertEval term env expectedVal
 
 evalTrueIf0 :: Test

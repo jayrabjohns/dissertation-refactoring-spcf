@@ -1,6 +1,6 @@
 module BoundedSPCF.ChurchEncoding where
 
-import BoundedSPCF.AST
+import BoundedSPCF.AST (Term (Apply, Lambda, Numeral, Variable), Type (Nat, (:->)))
 
 churchnat :: Term -> Term
 churchnat (Numeral i) = numeral i

@@ -186,12 +186,7 @@ data CatchResult
   | ArgumentIndex Int
   | Diverge String
 
--- Following Laird's definition of catch which has ground type rather than
---   Cartwreight & Fallensien's family of t -> o typed operators.
--- Need a way to track the index of each argument. Perhaps store a special variable in the context?
--- The alternative would be either re-writing the eval function inside of the case for catch,
--- or passing in a special parameter counting the index / having a custom monad tracking hte same state
-
+-- Following Cartwreight & Fallensien's family of t -> o typed operators.
 -- catch : (Tⁿ => 0) => n
 -- It takes in a function that takes in a product and returns the empty type
 --   and returns a numeral (the argument index).
